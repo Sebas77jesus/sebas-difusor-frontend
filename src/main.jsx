@@ -37,7 +37,7 @@ function WaProvider({ children }) {
   const { user } = React.useContext(AuthCtx);
   useEffect(() => {
     if (!user) return;
-    const es = new EventSource("/api/whatsapp/events");
+    const es = new EventSource(`${import.meta.env.VITE_API_URL || "/api"}/whatsapp/events`, { withCredentials: true });
     es.addEventListener("status", e => { const d = JSON.parse(e.data); setWaStatus(d.status); if(d.status==="connected") setQr(null); });
     es.addEventListener("qr", e => { setQr(JSON.parse(e.data).qr); setWaStatus("qr_ready"); });
     es.onerror = () => {};
