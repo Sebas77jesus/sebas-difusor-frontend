@@ -427,10 +427,30 @@ function ConfigPage() {
 }
 
 function ConexionPage() {
-  const { waStatus, qr, isConnected } = React.useContext(WaCtx);
+  const { isConnected } = React.useContext(WaCtx);
+  const [qrLocal, setQrLocal] = useState(null);
+  const [statusLocal, setStatusLocal] = useState("disconnected");
   const [connecting, setConnecting] = useState(false);
-  const statusColor = { connected:"#00d4aa", qr_ready:"#f59e0b", connecting:"#f59e0b", disconnected:"#ef4444" }[waStatus]||"#ef4444";
-  const statusLabel = { connected:"Conectado ✅", qr_ready:"📱 Escanea el QR", connecting:"🔄 Conectando...", disconnected:"Desconectado" }[waStatus]||waStatus;
+
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const s = await whatsappApi.status();
+        setStatusLocal(s.status);
+        if (s.hasQR) {
+          const data = await whatsappApi.qr();
+          if (data.qr) setQrLocal(data.qr);
+        }
+        if (s.isConnected) setQrLocal(null);
+      } catch {}
+    };
+    poll();
+    const interval = setInterval(poll, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const statusColor = { connected:"#00d4aa", qr_ready:"#f59e0b", connecting:"#f59e0b", disconnected:"#ef4444" }[statusLocal]||"#ef4444";
+  const statusLabel = { connected:"Conectado ✅", qr_ready:"📱 Escanea el QR", connecting:"🔄 Conectando...", disconnected:"Desconectado" }[statusLocal]||statusLocal;
 
   return (
     <div style={{ padding:16 }}>
@@ -441,38 +461,43 @@ function ConexionPage() {
           <span style={{ color:statusColor, fontWeight:700 }}>{statusLabel}</span>
         </div>
 
-        {qr && (
+        {qrLocal && (
           <div style={{ marginBottom:16 }}>
             <div style={{ background:"#fff", borderRadius:14, padding:12, display:"inline-block", marginBottom:10 }}>
-              <img src={qr} alt="QR" style={{ width:200, height:200, display:"block" }} />
+              <img src={qrLocal} alt="QR" style={{ width:220, height:220, display:"block" }} />
             </div>
-            <div style={{ color:"#f59e0b", fontSize:13 }}>⏱ QR expira en 60 segundos</div>
+            <div style={{ color:"#f59e0b", fontSize:13 }}>⏱ Escanea con WhatsApp ahora</div>
           </div>
         )}
 
-        {!isConnected && !qr && !connecting && (
+        {statusLocal === "disconnected" && !qrLocal && (
           <>
             <div style={{ fontSize:48, marginBottom:12 }}>📱</div>
-            <p style={{ color:"#ffffff55", fontSize:13, lineHeight:1.7, marginBottom:20 }}>Conecta tu WhatsApp para que el sistema<br/>empiece a escuchar las bodegas automáticamente</p>
-            <button onClick={async()=>{setConnecting(true);try{await whatsappApi.connect();}catch(e){alert(e.message);}finally{setConnecting(false);}}} style={{ ...btn("linear-gradient(135deg,#25d366,#128c7e)"), padding:"13px 32px", fontSize:15 }}>
+            <p style={{ color:"#ffffff55", fontSize:13, lineHeight:1.7, marginBottom:20 }}>
+              Conecta tu WhatsApp para que el sistema<br/>empiece a escuchar las bodegas automáticamente
+            </p>
+            <button onClick={async()=>{
+              setConnecting(true);
+              setStatusLocal("connecting");
+              try { await whatsappApi.connect(); } catch(e) { alert(e.message); }
+              finally { setConnecting(false); }
+            }} style={{ ...btn("linear-gradient(135deg,#25d366,#128c7e)"), padding:"13px 32px", fontSize:15 }}>
               Conectar WhatsApp
             </button>
           </>
         )}
 
-        {connecting && !qr && <div style={{ color:"#f59e0b", fontSize:14, marginTop:12 }}>🔄 Iniciando... espera 30 segundos</div>}
-        {isConnected && <button onClick={()=>whatsappApi.disconnect()} style={{ ...btn("#ef444418"), border:"1px solid #ef444435", color:"#ef4444", padding:"10px 24px", fontSize:13 }}>Desconectar</button>}
-      </div>
+        {statusLocal === "connecting" && !qrLocal && (
+          <div style={{ color:"#f59e0b", fontSize:14, marginTop:12 }}>
+            🔄 Iniciando Chrome... el QR aparece en 20-40 segundos
+          </div>
+        )}
 
-      <div style={{ ...card, padding:16, background:"#7c3aed08", borderColor:"#7c3aed20" }}>
-        <div style={{ color:"#a78bfa", fontWeight:700, marginBottom:8 }}>💡 ¿Cómo funciona?</div>
-        <div style={{ color:"#ffffff50", fontSize:13, lineHeight:1.75 }}>
-          1. Conectas tu WhatsApp escaneando el QR<br/>
-          2. En Configuración agregas los grupos de bodegas<br/>
-          3. El sistema escucha esos grupos 24/7<br/>
-          4. Cada foto+texto llega a tu bandeja ya formateado<br/>
-          5. Revisas, seleccionas todo y difundes en segundos
-        </div>
+        {statusLocal === "connected" && (
+          <button onClick={()=>whatsappApi.disconnect()} style={{ ...btn("#ef444418"), border:"1px solid #ef444435", color:"#ef4444", padding:"10px 24px", fontSize:13 }}>
+            Desconectar
+          </button>
+        )}
       </div>
     </div>
   );
