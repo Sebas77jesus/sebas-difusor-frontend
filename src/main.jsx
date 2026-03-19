@@ -388,12 +388,34 @@ function ConfigPage() {
   const [form, setForm] = useState({ name:"", wa_group_id:"", price_adjust:5000 });
   const [comForm, setComForm] = useState({ name:"", wa_group_id:"" });
 
-  const load = async () => { const [b, c] = await Promise.all([bodegasApi.list(), comunidadesApi.list()]); setBodegas(b.bodegas || []); setComunidades(c.comunidades || []); };
+  const load = async () => {
+    const [b, c] = await Promise.all([bodegasApi.list(), comunidadesApi.list()]);
+    setBodegas(b.bodegas || []);
+    setComunidades(c.comunidades || []);
+  };
   useEffect(() => { load(); }, []);
 
-  const syncGroups = async () => { setLoadingGroups(true); try { const { groups } = await bodegasApi.syncGroups(); setGroups(groups); } catch (e) { alert("Error: "+e.message); } finally { setLoadingGroups(false); } };
-  const addBodega = async () => { await bodegasApi.create(form); setShowBodegaForm(false); setForm({name:"",wa_group_id:"",price_adjust:5000}); load(); };
-  const addCom = async () => { await comunidadesApi.create(comForm); setShowComForm(false); setComForm({name:"",wa_group_id:""}); load(); };
+  const syncGroups = async () => {
+    setLoadingGroups(true);
+    try { const { groups } = await bodegasApi.syncGroups(); setGroups(groups); }
+    catch (e) { alert("Error: "+e.message); }
+    finally { setLoadingGroups(false); }
+  };
+
+  const addBodega = async () => {
+    await bodegasApi.create(form);
+    setShowBodegaForm(false);
+    setGroups([]);
+    setForm({name:"",wa_group_id:"",price_adjust:5000});
+    load();
+  };
+
+  const addCom = async () => {
+    await comunidadesApi.create(comForm);
+    setShowComForm(false);
+    setComForm({name:"",wa_group_id:""});
+    load();
+  };
 
   return (
     <div style={{ padding:16, paddingBottom:80 }}>
@@ -401,24 +423,93 @@ function ConfigPage() {
 
       <div style={{ marginBottom:24 }}>
         <div style={{ color:"#ffffff60", fontSize:12, fontWeight:700, marginBottom:10, letterSpacing:1 }}>📥 BODEGAS QUE VIGILAMOS</div>
-        {isConnected && <button onClick={syncGroups} disabled={loadingGroups} style={{ ...btn("#25d36618"), border:"1px solid #25d36630", color:"#25d366", width:"100%", marginBottom:10, padding:"10px 0", fontSize:13 }}>{loadingGroups ? "🔄 Cargando..." : "🔄 Importar grupos de WhatsApp"}</button>}
-        {groups.length > 0 && <div style={{ ...card, padding:14, marginBottom:12 }}>{groups.map(g => <div key={g.wa_group_id} onClick={()=>{setForm({name:g.name, wa_group_id:g.wa_group_id, price_adjust:5000});setShowBodegaForm(true);}} style={{ display:"flex", justifyContent:"space-between", padding:"8px 0", borderBottom:"1px solid #ffffff08", cursor:"pointer" }}><div><div style={{ color:"#fff", fontSize:13 }}>{g.name}</div><div style={{ color:"#ffffff40", fontSize:11 }}>👥 {g.members}</div></div><span style={{ color:"#7c3aed", fontSize:12 }}>+ Agregar</span></div>)}</div>}
-        {bodegas.map(b => <div key={b.id} style={{ ...card, padding:"12px 14px", marginBottom:8, display:"flex", justifyContent:"space-between", alignItems:"center" }}><div><div style={{ color:"#fff", fontSize:14, fontWeight:600 }}>{b.name}</div><div style={{ color:"#ffffff40", fontSize:11 }}>Ajuste: +{fmt(b.price_adjust)}</div></div><button onClick={()=>bodegasApi.delete(b.id).then(load)} style={{ background:"#ef444412", border:"1px solid #ef444430", borderRadius:7, color:"#ef4444", padding:"5px 10px", cursor:"pointer", fontSize:12 }}>✕</button></div>)}
-        {!showBodegaForm ? <button onClick={()=>setShowBodegaForm(true)} style={{ ...btn("#ffffff08"), border:"1px solid #ffffff15", color:"#fff", width:"100%", padding:"10px 0", fontSize:13 }}>+ Agregar bodega manual</button> : (
-          <div style={{ ...card, padding:14 }}>
-            {[{k:"name",l:"Nombre bodega"},{k:"wa_group_id",l:"ID WhatsApp (120363xxx@g.us)"}].map(({k,l})=>(<div key={k} style={{ marginBottom:10 }}><label style={{ color:"#ffffff45", fontSize:11, display:"block", marginBottom:4 }}>{l}</label><input value={form[k]} onChange={e=>setForm(p=>({...p,[k]:e.target.value}))} style={{ width:"100%", background:"#ffffff08", border:"1px solid #ffffff15", borderRadius:8, padding:"8px 11px", fontSize:13, outline:"none" }} /></div>))}
-            <div style={{ display:"flex", gap:8 }}><button onClick={()=>setShowBodegaForm(false)} style={{ flex:1, ...btn("#ffffff10"), border:"1px solid #ffffff15", color:"#fff" }}>Cancelar</button><button onClick={addBodega} style={{ flex:2, ...btn("linear-gradient(135deg,#7c3aed,#00d4aa)") }}>Guardar</button></div>
+
+        {isConnected && !showBodegaForm && (
+          <button onClick={syncGroups} disabled={loadingGroups} style={{ ...btn("#25d36618"), border:"1px solid #25d36630", color:"#25d366", width:"100%", marginBottom:10, padding:"10px 0", fontSize:13 }}>
+            {loadingGroups ? "🔄 Cargando grupos..." : "🔄 Importar grupos de WhatsApp"}
+          </button>
+        )}
+
+        {groups.length > 0 && !showBodegaForm && (
+          <div style={{ ...card, padding:14, marginBottom:12 }}>
+            <div style={{ color:"#ffffff55", fontSize:12, marginBottom:8 }}>Toca un grupo para agregarlo como bodega:</div>
+            {groups.map(g => (
+              <div key={g.wa_group_id}
+                onClick={() => {
+                  setForm({name:g.name, wa_group_id:g.wa_group_id, price_adjust:5000});
+                  setShowBodegaForm(true);
+                }}
+                style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 0", borderBottom:"1px solid #ffffff08", cursor:"pointer" }}>
+                <div>
+                  <div style={{ color:"#fff", fontSize:13 }}>{g.name}</div>
+                  <div style={{ color:"#ffffff40", fontSize:11 }}>👥 {g.members}</div>
+                </div>
+                <span style={{ color:"#25d366", fontSize:13, fontWeight:700 }}>+ Agregar</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {bodegas.map(b => (
+          <div key={b.id} style={{ ...card, padding:"12px 14px", marginBottom:8, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <div>
+              <div style={{ color:"#fff", fontSize:14, fontWeight:600 }}>{b.name}</div>
+              <div style={{ color:"#ffffff40", fontSize:11 }}>Ajuste: +{fmt(b.price_adjust)}</div>
+            </div>
+            <button onClick={()=>bodegasApi.delete(b.id).then(load)} style={{ background:"#ef444412", border:"1px solid #ef444430", borderRadius:7, color:"#ef4444", padding:"5px 10px", cursor:"pointer", fontSize:12 }}>✕</button>
+          </div>
+        ))}
+
+        {!showBodegaForm ? (
+          <button onClick={()=>setShowBodegaForm(true)} style={{ ...btn("#ffffff08"), border:"1px solid #ffffff15", color:"#fff", width:"100%", padding:"10px 0", fontSize:13 }}>+ Agregar bodega manual</button>
+        ) : (
+          <div style={{ ...card, padding:16 }}>
+            <div style={{ color:"#ffffff60", fontSize:13, fontWeight:700, marginBottom:12 }}>📥 Agregar bodega</div>
+            <div style={{ marginBottom:10 }}>
+              <label style={{ color:"#ffffff45", fontSize:11, display:"block", marginBottom:4 }}>Nombre bodega</label>
+              <input value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} style={{ width:"100%", background:"#ffffff08", border:"1px solid #ffffff15", borderRadius:8, padding:"8px 11px", fontSize:13, outline:"none", color:"#fff" }} />
+            </div>
+            <div style={{ marginBottom:12 }}>
+              <label style={{ color:"#ffffff45", fontSize:11, display:"block", marginBottom:4 }}>Sumarle al precio de venta</label>
+              <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
+                {[0,3000,5000,8000,10000,15000].map(v=>(
+                  <button key={v} onClick={()=>setForm(p=>({...p,price_adjust:v}))} style={{ background:form.price_adjust===v?"#7c3aed":"#ffffff08", border:`1px solid ${form.price_adjust===v?"#7c3aed":"#ffffff12"}`, borderRadius:7, color:"#fff", padding:"6px 10px", fontSize:12, cursor:"pointer", fontWeight:form.price_adjust===v?700:400 }}>
+                    {v===0?"Sin ajuste":`+$${v/1000}k`}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ display:"flex", gap:8 }}>
+              <button onClick={()=>{setShowBodegaForm(false);}} style={{ flex:1, ...btn("#ffffff10"), border:"1px solid #ffffff15", color:"#fff" }}>Cancelar</button>
+              <button onClick={addBodega} style={{ flex:2, ...btn("linear-gradient(135deg,#25d366,#128c7e)") }}>✅ Guardar bodega</button>
+            </div>
           </div>
         )}
       </div>
 
       <div style={{ marginBottom:24 }}>
         <div style={{ color:"#ffffff60", fontSize:12, fontWeight:700, marginBottom:10, letterSpacing:1 }}>📤 MIS COMUNIDADES DESTINO</div>
-        {comunidades.map(c => <div key={c.id} style={{ ...card, padding:"12px 14px", marginBottom:8, display:"flex", justifyContent:"space-between", alignItems:"center" }}><div style={{ color:"#fff", fontSize:14 }}>{c.name}</div><button onClick={()=>comunidadesApi.delete(c.id).then(load)} style={{ background:"#ef444412", border:"1px solid #ef444430", borderRadius:7, color:"#ef4444", padding:"5px 10px", cursor:"pointer", fontSize:12 }}>✕</button></div>)}
-        {!showComForm ? <button onClick={()=>setShowComForm(true)} style={{ ...btn("#ffffff08"), border:"1px solid #ffffff15", color:"#fff", width:"100%", padding:"10px 0", fontSize:13 }}>+ Agregar comunidad</button> : (
-          <div style={{ ...card, padding:14 }}>
-            {[{k:"name",l:"Nombre"},{k:"wa_group_id",l:"ID WhatsApp del grupo/comunidad"}].map(({k,l})=>(<div key={k} style={{ marginBottom:10 }}><label style={{ color:"#ffffff45", fontSize:11, display:"block", marginBottom:4 }}>{l}</label><input value={comForm[k]} onChange={e=>setComForm(p=>({...p,[k]:e.target.value}))} style={{ width:"100%", background:"#ffffff08", border:"1px solid #ffffff15", borderRadius:8, padding:"8px 11px", fontSize:13, outline:"none" }} /></div>))}
-            <div style={{ display:"flex", gap:8 }}><button onClick={()=>setShowComForm(false)} style={{ flex:1, ...btn("#ffffff10"), border:"1px solid #ffffff15", color:"#fff" }}>Cancelar</button><button onClick={addCom} style={{ flex:2, ...btn("linear-gradient(135deg,#25d366,#128c7e)") }}>Guardar</button></div>
+        {comunidades.map(c => (
+          <div key={c.id} style={{ ...card, padding:"12px 14px", marginBottom:8, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <div style={{ color:"#fff", fontSize:14 }}>{c.name}</div>
+            <button onClick={()=>comunidadesApi.delete(c.id).then(load)} style={{ background:"#ef444412", border:"1px solid #ef444430", borderRadius:7, color:"#ef4444", padding:"5px 10px", cursor:"pointer", fontSize:12 }}>✕</button>
+          </div>
+        ))}
+        {!showComForm ? (
+          <button onClick={()=>setShowComForm(true)} style={{ ...btn("#ffffff08"), border:"1px solid #ffffff15", color:"#fff", width:"100%", padding:"10px 0", fontSize:13 }}>+ Agregar comunidad</button>
+        ) : (
+          <div style={{ ...card, padding:16 }}>
+            <div style={{ color:"#ffffff60", fontSize:13, fontWeight:700, marginBottom:12 }}>📤 Agregar comunidad destino</div>
+            {[{k:"name",l:"Nombre de tu comunidad"},{k:"wa_group_id",l:"ID WhatsApp (lo obtenemos importando)"}].map(({k,l})=>(
+              <div key={k} style={{ marginBottom:10 }}>
+                <label style={{ color:"#ffffff45", fontSize:11, display:"block", marginBottom:4 }}>{l}</label>
+                <input value={comForm[k]} onChange={e=>setComForm(p=>({...p,[k]:e.target.value}))} style={{ width:"100%", background:"#ffffff08", border:"1px solid #ffffff15", borderRadius:8, padding:"8px 11px", fontSize:13, outline:"none", color:"#fff" }} />
+              </div>
+            ))}
+            <div style={{ display:"flex", gap:8 }}>
+              <button onClick={()=>setShowComForm(false)} style={{ flex:1, ...btn("#ffffff10"), border:"1px solid #ffffff15", color:"#fff" }}>Cancelar</button>
+              <button onClick={addCom} style={{ flex:2, ...btn("linear-gradient(135deg,#7c3aed,#00d4aa)") }}>✅ Guardar comunidad</button>
+            </div>
           </div>
         )}
       </div>
