@@ -125,26 +125,20 @@ function TarjetaProducto({ msg: msgInicial, selected, onToggle, onUpdate, onElim
  
   return (
     <div style={{ background:selected?"#25d36606":"#ffffff04", border:`1.5px solid ${selected?"#25d366":"#ffffff08"}`, borderRadius:16, marginBottom:10, overflow:"hidden" }}>
- 
-      {/* Layout: foto pequeña izq + texto derecha */}
       <div style={{ display:"flex" }}>
-        {/* Foto */}
         <div style={{ width:90,flexShrink:0,background:"#111b21",display:"flex",alignItems:"center",justifyContent:"center",fontSize:36,color:"#ffffff10",position:"relative",minHeight:130 }}>
           {msg.media_path
             ? <img src={`https://sebas-difusor-backend-production.up.railway.app${msg.media_path}`} alt="" style={{ width:"100%",height:"100%",objectFit:"cover",position:"absolute",inset:0 }} />
             : <span style={{ fontSize:32,opacity:0.15 }}>👟</span>
           }
-          {/* Checkbox */}
           <div onClick={onToggle} style={{ position:"absolute",top:7,left:7,width:24,height:24,borderRadius:7,background:selected?"#25d366":"#00000099",border:`2px solid ${selected?"#25d366":"#ffffff50"}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:13,fontWeight:900,color:"#fff",zIndex:2 }}>
             {selected?"✓":""}
           </div>
           {msg.es_promo && <div style={{ position:"absolute",bottom:6,left:4,background:"#ef4444",borderRadius:5,padding:"2px 5px",fontSize:9,color:"#fff",fontWeight:800,zIndex:2 }}>🚨PROMO</div>}
         </div>
- 
-        {/* Caption */}
         <div style={{ flex:1,padding:"11px 12px" }}>
           <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8 }}>
-            <div style={{ display:"flex",gap:5,alignItems:"center" }}>
+            <div style={{ display:"flex",gap:5,alignItems:"center",flexWrap:"wrap" }}>
               {msg.cod && <div style={{ background:"#ffffff0a",borderRadius:5,padding:"2px 7px",fontSize:10,color:"#ffffff50",fontWeight:700 }}>COD {msg.cod}</div>}
               {msg.bodega_name && <div style={{ background:"#ffffff0a",borderRadius:5,padding:"2px 7px",fontSize:10,color:"#ffffff40" }}>{msg.bodega_name}</div>}
             </div>
@@ -153,12 +147,10 @@ function TarjetaProducto({ msg: msgInicial, selected, onToggle, onUpdate, onElim
                 {editando?"✅ Listo":"✏️ Editar"}
               </button>
               <button onClick={onEliminar} style={{ background:"#ef444412",border:"1px solid #ef444425",borderRadius:7,color:"#ef4444",padding:"4px 9px",fontSize:11,cursor:"pointer" }}>
-                🗑 Eliminar
+                🗑
               </button>
             </div>
           </div>
- 
-          {/* Burbuja WhatsApp */}
           <div style={{ background:"#005c4b",borderRadius:"4px 12px 12px 12px",padding:"9px 11px" }}>
             <pre style={{ margin:0,color:"#e9edef",fontSize:12,lineHeight:1.65,whiteSpace:"pre-wrap",fontFamily:"inherit" }}>{caption}</pre>
             <div style={{ textAlign:"right",fontSize:10,color:"#8696a088",marginTop:4 }}>
@@ -168,16 +160,13 @@ function TarjetaProducto({ msg: msgInicial, selected, onToggle, onUpdate, onElim
         </div>
       </div>
  
-      {/* Panel edición inline */}
       {editando && (
         <div style={{ borderTop:"1px solid #ffffff08",padding:"12px 14px",background:"#0d1520" }}>
           <div style={{ color:"#f59e0b",fontSize:11,fontWeight:700,marginBottom:10 }}>✏️ Corregir si la IA procesó algo mal:</div>
- 
           <div style={{ marginBottom:8 }}>
             <label style={{ color:"#ffffff40",fontSize:10,display:"block",marginBottom:3 }}>NOMBRE DEL PRODUCTO</label>
-            <input value={msg.nombre||""} onChange={e=>edit("nombre",e.target.value.toUpperCase())} placeholder={!msg.nombre?"⚠️ MÁQUINA no manda nombre — escríbelo aquí":"Nombre"} style={{ width:"100%",background:"#1e293b",border:`1.5px solid ${!msg.nombre?"#f59e0b":"#ffffff15"}`,borderRadius:8,padding:"8px 11px",fontSize:13,color:"#fff",fontWeight:700,outline:"none",boxSizing:"border-box" }} />
+            <input value={msg.nombre||""} onChange={e=>edit("nombre",e.target.value.toUpperCase())} placeholder={!msg.nombre?"⚠️ Escribe el nombre":"Nombre"} style={{ width:"100%",background:"#1e293b",border:`1.5px solid ${!msg.nombre?"#f59e0b":"#ffffff15"}`,borderRadius:8,padding:"8px 11px",fontSize:13,color:"#fff",fontWeight:700,outline:"none",boxSizing:"border-box" }} />
           </div>
- 
           <div style={{ marginBottom:8 }}>
             <label style={{ color:"#ffffff40",fontSize:10,display:"block",marginBottom:3 }}>GÉNERO</label>
             <div style={{ display:"flex",gap:5 }}>
@@ -188,12 +177,10 @@ function TarjetaProducto({ msg: msgInicial, selected, onToggle, onUpdate, onElim
               ))}
             </div>
           </div>
- 
           <div style={{ marginBottom:8 }}>
             <label style={{ color:"#ffffff40",fontSize:10,display:"block",marginBottom:3 }}>TALLAS</label>
             <input value={msg.tallas||""} onChange={e=>edit("tallas",e.target.value.toUpperCase())} style={{ width:"100%",background:"#1e293b",border:"1px solid #ffffff15",borderRadius:8,padding:"7px 10px",fontSize:12,color:"#fff",outline:"none",boxSizing:"border-box" }} />
           </div>
- 
           <div style={{ marginBottom:8 }}>
             <label style={{ color:"#ffffff40",fontSize:10,display:"block",marginBottom:3 }}>PRECIO BODEGA → SE SUMA → TU PRECIO</label>
             <div style={{ display:"flex",gap:6,alignItems:"center" }}>
@@ -208,7 +195,6 @@ function TarjetaProducto({ msg: msgInicial, selected, onToggle, onUpdate, onElim
               </div>
             </div>
           </div>
- 
           <div style={{ display:"flex",gap:6,marginBottom:8 }}>
             <button onClick={()=>edit("tiene_caja",!msg.tiene_caja)} style={{ flex:1,background:msg.tiene_caja?"#00d4aa15":"#ffffff06",border:`1px solid ${msg.tiene_caja?"#00d4aa35":"#ffffff10"}`,borderRadius:8,color:msg.tiene_caja?"#00d4aa":"#ffffff40",padding:"7px 0",fontSize:11,cursor:"pointer" }}>
               📦 {msg.tiene_caja?"Tiene caja ✓":"Sin caja"}
@@ -217,20 +203,17 @@ function TarjetaProducto({ msg: msgInicial, selected, onToggle, onUpdate, onElim
               🚨 {msg.es_promo?"PROMO ✓":"No es promo"}
             </button>
           </div>
- 
           {msg.tiene_caja && (
             <div style={{ marginBottom:8 }}>
               <label style={{ color:"#ffffff40",fontSize:10,display:"block",marginBottom:3 }}>PRECIO POR CAJA</label>
               <input type="number" value={msg.precio_caja||0} onChange={e=>edit("precio_caja",parseInt(e.target.value)||0)} style={{ width:"100%",background:"#1e293b",border:"1px solid #00d4aa30",borderRadius:8,padding:"7px 10px",fontSize:12,color:"#00d4aa",outline:"none",boxSizing:"border-box" }} />
             </div>
           )}
- 
           <button onClick={guardar} disabled={saving} style={{ background:"linear-gradient(135deg,#25d366,#128c7e)",border:"none",borderRadius:10,color:"#fff",width:"100%",padding:"10px 0",fontSize:13,fontWeight:700,cursor:"pointer",marginTop:4,opacity:saving?0.5:1 }}>
             {saving?"Guardando...":"✅ Guardar cambios"}
           </button>
         </div>
       )}
- 
       <div style={{ padding:"8px 14px",borderTop:"1px solid #ffffff06",display:"flex",justifyContent:"flex-end" }}>
         <button onClick={onToggle} style={{ background:selected?"#25d36620":"#ffffff08",border:`1.5px solid ${selected?"#25d366":"#ffffff12"}`,borderRadius:8,color:selected?"#25d366":"#ffffff40",padding:"6px 14px",fontSize:12,fontWeight:selected?700:400,cursor:"pointer" }}>
           {selected?"✓ Seleccionado":"Seleccionar"}
@@ -241,20 +224,20 @@ function TarjetaProducto({ msg: msgInicial, selected, onToggle, onUpdate, onElim
 }
  
 // ── INBOX ─────────────────────────────────────────────────────────────────────
-// Bodegas conocidas — tabs solo aparecen si hay mensajes de esa bodega
 const TABS_BODEGAS = [
-  { key:"dmero",   label:"D'Mero",   emoji:"🔴", color:"#ef4444", match:(n)=>n.toLowerCase().includes("mero") },
-  { key:"fym",     label:"FYM",      emoji:"✨", color:"#8b5cf6", match:(n)=>n.toLowerCase().includes("fym") },
-  { key:"maylo",   label:"Maylo",    emoji:"📦", color:"#ec4899", match:(n)=>n.toLowerCase().includes("maylo") },
-  { key:"dinastia",label:"Dinastía", emoji:"👑", color:"#f59e0b", match:(n)=>n.toLowerCase().includes("dinast") },
-  { key:"maquina", label:"Máquina",  emoji:"⚙️", color:"#06b6d4", match:(n)=>n.toLowerCase().includes("quina") },
+  { key:"dmero",    label:"D'Mero",   emoji:"🔴", color:"#ef4444", match:(n)=>n.toLowerCase().includes("mero") },
+  { key:"fym",      label:"FYM",      emoji:"✨", color:"#8b5cf6", match:(n)=>n.toLowerCase().includes("fym") },
+  { key:"maylo",    label:"Maylo",    emoji:"📦", color:"#ec4899", match:(n)=>n.toLowerCase().includes("maylo") },
+  { key:"dinastia", label:"Dinastía", emoji:"👑", color:"#f59e0b", match:(n)=>n.toLowerCase().includes("dinast") },
+  { key:"maquina",  label:"Máquina",  emoji:"⚙️", color:"#06b6d4", match:(n)=>n.toLowerCase().includes("quina") },
+  { key:"otro",     label:"Otros",    emoji:"📩", color:"#94a3b8", match:(n)=>!["mero","fym","maylo","dinast","quina"].some(k=>n.toLowerCase().includes(k)) },
 ];
  
 function InboxPage() {
   const [msgs, setMsgs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(new Set());
-  const [tabActiva, setTabActiva] = useState(null); // null = primera disponible
+  const [tabActiva, setTabActiva] = useState(null);
   const [step, setStep] = useState("list");
   const [progreso, setProgreso] = useState(0);
   const [comunidades, setComunidades] = useState([]);
@@ -269,7 +252,6 @@ function InboxPage() {
   }, []);
  
   useEffect(() => { loadData(); }, [loadData]);
- 
   useEffect(() => {
     const tk = localStorage.getItem("sd_token");
     const es = new EventSource(`${BASE_URL}/inbox/stream?token=${tk}`);
@@ -277,21 +259,13 @@ function InboxPage() {
     return () => es.close();
   }, [loadData]);
  
-  // Tabs con mensajes reales
-  const tabsConMensajes = TABS_BODEGAS.filter(t =>
-    msgs.some(m => t.match(m.bodega_name || ""))
-  );
- 
-  // Si no hay tab activa o la activa ya no tiene mensajes, usar la primera disponible
+  const tabsConMensajes = TABS_BODEGAS.filter(t => msgs.some(m => t.match(m.bodega_name || "")));
   const tabEfectiva = tabsConMensajes.find(t => t.key === tabActiva) || tabsConMensajes[0];
   const tabColor = tabEfectiva?.color || "#25d366";
- 
-  const filtrados = tabEfectiva
-    ? msgs.filter(m => tabEfectiva.match(m.bodega_name || ""))
-    : [];
+  const filtrados = tabEfectiva ? msgs.filter(m => tabEfectiva.match(m.bodega_name || "")) : [];
  
   const toggle = (id) => setSelected(p => { const n = new Set(p); n.has(id)?n.delete(id):n.add(id); return n; });
-  const selTodos = () => setSelected(new Set(filtrados.map(m => m.id)));
+  const selTodos = () => setSelected(new Set(filtrados.map(m=>m.id)));
   const limpiar = () => setSelected(new Set());
  
   const eliminar = async (id) => {
@@ -299,7 +273,7 @@ function InboxPage() {
       await inboxApi.skip(id);
       setMsgs(p => p.filter(m => m.id !== id));
       setSelected(p => { const n = new Set(p); n.delete(id); return n; });
-    } catch(e) { alert("Error al eliminar: "+e.message); }
+    } catch(e) { alert("Error: "+e.message); }
   };
  
   const difundir = () => {
@@ -307,16 +281,16 @@ function InboxPage() {
     setStep("sending"); setProgreso(0);
     startDifusion({
       inbox_ids: [...selected],
-      comunidad_ids: comunidades.map(c => c.id),
-      onStart: () => {},
-      onSent: (d) => setProgreso(Math.round((d.sent+d.failed)/d.total*100)),
-      onFailed: (d) => setProgreso(Math.round((d.sent+d.failed)/d.total*100)),
-      onComplete: () => { setStep("done"); setSelected(new Set()); loadData(); },
-      onError: (e) => { alert("Error: "+e); setStep("list"); },
+      comunidad_ids: comunidades.map(c=>c.id),
+      onStart: ()=>{},
+      onSent: (d)=>setProgreso(Math.round((d.sent+d.failed)/d.total*100)),
+      onFailed: (d)=>setProgreso(Math.round((d.sent+d.failed)/d.total*100)),
+      onComplete: ()=>{ setStep("done"); setSelected(new Set()); loadData(); },
+      onError: (e)=>{ alert("Error: "+e); setStep("list"); },
     });
   };
  
-  if (step === "sending") return (
+  if (step==="sending") return (
     <div style={{ padding:24,textAlign:"center",paddingTop:70,background:"#0a0f1a",minHeight:"80vh" }}>
       <div style={{ fontSize:60,marginBottom:16 }}>⏳</div>
       <div style={{ fontSize:20,fontWeight:900,color:"#25d366",marginBottom:8 }}>Difundiendo...</div>
@@ -328,7 +302,7 @@ function InboxPage() {
     </div>
   );
  
-  if (step === "done") return (
+  if (step==="done") return (
     <div style={{ padding:24,textAlign:"center",paddingTop:70,background:"#0a0f1a",minHeight:"80vh" }}>
       <div style={{ fontSize:70,marginBottom:16 }}>🎉</div>
       <div style={{ fontSize:24,fontWeight:900,color:"#00d4aa",marginBottom:8 }}>¡Listo!</div>
@@ -342,74 +316,52 @@ function InboxPage() {
  
   return (
     <div>
-      {/* Tabs — solo bodegas con mensajes */}
-      {tabsConMensajes.length > 0 ? (
+      {tabsConMensajes.length > 0 && (
         <div style={{ display:"flex",overflowX:"auto",borderBottom:"1px solid #ffffff08",background:"#0d1520" }}>
           {tabsConMensajes.map(t => {
-            const count = msgs.filter(m => t.match(m.bodega_name||"")).length;
+            const count = msgs.filter(m=>t.match(m.bodega_name||"")).length;
             const isActive = tabEfectiva?.key === t.key;
             return (
               <button key={t.key} onClick={()=>{ setTabActiva(t.key); setSelected(new Set()); }}
-                style={{ background:isActive?"#0a0f1a":"transparent", borderBottom:`2.5px solid ${isActive?t.color:"transparent"}`, border:"none", borderTop:"none", borderLeft:"none", borderRight:"none", color:isActive?"#fff":"#ffffff35", padding:"11px 14px", fontSize:12, fontWeight:isActive?800:400, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:5 }}>
-                <span>{t.emoji}</span>
-                <span>{t.label}</span>
-                <span style={{ background:isActive?t.color:"#ffffff15", color:"#fff", borderRadius:8, padding:"1px 6px", fontSize:10, fontWeight:800 }}>{count}</span>
+                style={{ background:isActive?"#0a0f1a":"transparent",borderBottom:`2.5px solid ${isActive?t.color:"transparent"}`,border:"none",borderTop:"none",borderLeft:"none",borderRight:"none",color:isActive?"#fff":"#ffffff35",padding:"11px 14px",fontSize:12,fontWeight:isActive?800:400,cursor:"pointer",whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:5 }}>
+                <span>{t.emoji}</span><span>{t.label}</span>
+                <span style={{ background:isActive?t.color:"#ffffff15",color:"#fff",borderRadius:8,padding:"1px 6px",fontSize:10,fontWeight:800 }}>{count}</span>
               </button>
             );
           })}
         </div>
-      ) : null}
+      )}
  
-      {/* Toolbar */}
       {filtrados.length > 0 && (
         <div style={{ padding:"10px 12px",display:"flex",gap:8,alignItems:"center",borderBottom:"1px solid #ffffff06" }}>
-          <button onClick={selTodos} style={{ background:"#ffffff08",border:"1px solid #ffffff12",borderRadius:7,color:"#fff",padding:"6px 12px",fontSize:12,cursor:"pointer" }}>
-            ☑️ Todos ({filtrados.length})
-          </button>
-          {selected.size > 0 && (
-            <button onClick={limpiar} style={{ background:"#ffffff06",border:"1px solid #ffffff10",borderRadius:7,color:"#ffffff50",padding:"6px 10px",fontSize:12,cursor:"pointer" }}>Limpiar</button>
-          )}
-          {selected.size > 0 && (
-            <div style={{ marginLeft:"auto",color:"#ffffff50",fontSize:12 }}>{selected.size} seleccionados</div>
-          )}
+          <button onClick={selTodos} style={{ background:"#ffffff08",border:"1px solid #ffffff12",borderRadius:7,color:"#fff",padding:"6px 12px",fontSize:12,cursor:"pointer" }}>☑️ Todos ({filtrados.length})</button>
+          {selected.size>0 && <button onClick={limpiar} style={{ background:"#ffffff06",border:"1px solid #ffffff10",borderRadius:7,color:"#ffffff50",padding:"6px 10px",fontSize:12,cursor:"pointer" }}>Limpiar</button>}
+          {selected.size>0 && <div style={{ marginLeft:"auto",color:"#ffffff50",fontSize:12 }}>{selected.size} seleccionados</div>}
         </div>
       )}
  
-      {/* Lista */}
       <div style={{ padding:"8px 12px 110px" }}>
         {loading ? (
           <div style={{ textAlign:"center",padding:48,color:"#ffffff30" }}>Cargando...</div>
-        ) : tabsConMensajes.length === 0 ? (
+        ) : tabsConMensajes.length===0 ? (
           <div style={{ textAlign:"center",padding:64 }}>
             <div style={{ fontSize:56,marginBottom:12 }}>📭</div>
             <div style={{ color:"#fff",fontWeight:700,fontSize:16 }}>Bandeja vacía</div>
-            <div style={{ color:"#ffffff40",fontSize:13,marginTop:6 }}>Los mensajes de las bodegas aparecerán aquí cuando lleguen</div>
+            <div style={{ color:"#ffffff40",fontSize:13,marginTop:6 }}>Los mensajes aparecerán aquí cuando lleguen de las bodegas</div>
           </div>
-        ) : filtrados.length === 0 ? (
+        ) : filtrados.length===0 ? (
           <div style={{ textAlign:"center",padding:48,color:"#ffffff40",fontSize:13 }}>Sin mensajes en esta bodega</div>
-        ) : filtrados.map(msg => (
-          <TarjetaProducto
-            key={msg.id}
-            msg={msg}
-            selected={selected.has(msg.id)}
-            onToggle={() => toggle(msg.id)}
-            onUpdate={(u) => setMsgs(p => p.map(m => m.id===msg.id?u:m))}
-            onEliminar={() => eliminar(msg.id)}
-          />
+        ) : filtrados.map(msg=>(
+          <TarjetaProducto key={msg.id} msg={msg} selected={selected.has(msg.id)} onToggle={()=>toggle(msg.id)} onUpdate={(u)=>setMsgs(p=>p.map(m=>m.id===msg.id?u:m))} onEliminar={()=>eliminar(msg.id)} />
         ))}
       </div>
  
-      {/* FAB Difundir */}
-      {selected.size > 0 && (
+      {selected.size>0 && (
         <div style={{ position:"fixed",bottom:72,left:0,right:0,padding:"0 12px",zIndex:50 }}>
           <button onClick={difundir} style={{ width:"100%",background:`linear-gradient(135deg,${tabColor},${tabColor}bb)`,border:"none",borderRadius:14,color:"#fff",padding:"15px 0",fontSize:15,fontWeight:800,cursor:"pointer",boxShadow:`0 6px 28px ${tabColor}45` }}>
             📲 Difundir {selected.size} foto{selected.size!==1?"s":""} a {comunidades.length} comunidad{comunidades.length!==1?"es":""}
           </button>
-          {comunidades.length > 0 && (
-            <div style={{ textAlign:"center",marginTop:5,color:"#ffffff30",fontSize:11 }}>
-              → {comunidades.map(c=>c.name).join(" + ")}
-            </div>
-          )}
+          {comunidades.length>0 && <div style={{ textAlign:"center",marginTop:5,color:"#ffffff30",fontSize:11 }}>→ {comunidades.map(c=>c.name).join(" + ")}</div>}
         </div>
       )}
     </div>
@@ -417,6 +369,145 @@ function InboxPage() {
 }
  
 // ── CONFIG ────────────────────────────────────────────────────────────────────
+const REGLAS_DEFAULT = [
+  { id:"dinastia",  nombre:"DINASTÍA",    emoji:"👑", color:"#f59e0b", tipo:"cuadre_publico", seSuma:5000,  mandaNombre:true,  mandaTallas:true,  mandaCaja:false, mandaCod:false, nota:"Manda: NOMBRE GÉNERO / CUADRE XX / PUBLICÓ XX" },
+  { id:"dmero",     nombre:"D'MERO SPORT",emoji:"🔴", color:"#ef4444", tipo:"precio_cod",     seSuma:5000,  mandaNombre:true,  mandaTallas:true,  mandaCaja:true,  mandaCod:true,  nota:"Manda: NOMBRE / PRECIO / CODIGO / TALLAS / POR CAJA" },
+  { id:"maylo",     nombre:"BODEGA MAYLO",emoji:"📦", color:"#ec4899", tipo:"cod_precio",     seSuma:5000,  mandaNombre:true,  mandaTallas:false, mandaCaja:true,  mandaCod:true,  nota:"Manda: COD / NOMBRE / $precio / Por caja" },
+  { id:"fym",       nombre:"FYM",         emoji:"✨", color:"#8b5cf6", tipo:"precio_ref",     seSuma:5000,  mandaNombre:true,  mandaTallas:true,  mandaCaja:false, mandaCod:false, nota:"Manda: NOMBRE / PRECIO / Tallas / Ref / ¿PROMO?" },
+  { id:"maquina",   nombre:"MÁQUINA",     emoji:"⚙️", color:"#06b6d4", tipo:"solo_cod",       seSuma:15000, mandaNombre:false, mandaTallas:false, mandaCaja:false, mandaCod:true,  nota:"Manda: Cod XXXX género - precio. NO manda nombre." },
+];
+ 
+const TIPOS_PRECIO = [
+  { key:"cuadre_publico", label:"CUADRE y PUBLICÓ",     desc:"Manda dos precios: cuadra y publicó. Usamos PUBLICÓ." },
+  { key:"precio_cod",     label:"PRECIO + CODIGO + CAJA",desc:"Manda precio, código y precio por caja." },
+  { key:"cod_precio",     label:"COD + precio + CAJA",   desc:"Manda COD primero, luego precio y caja." },
+  { key:"precio_ref",     label:"PRECIO + Referencia",   desc:"Manda PRECIO, tallas, referencia. Puede incluir PROMO." },
+  { key:"solo_cod",       label:"Solo COD y precio",      desc:"Solo manda el código y el precio. Sin nombre ni tallas." },
+  { key:"precio_venta",   label:"Precio venta directo",   desc:"Manda el precio final directamente. Se suma encima." },
+];
+ 
+function FormNuevaBodega({ onGuardar, onCancelar }) {
+  const [form, setForm] = useState({
+    nombre:"", emoji:"📦", color:"#ffffff40",
+    tipo:"precio_cod", seSuma:5000,
+    mandaNombre:true, mandaTallas:true, mandaCaja:false, mandaCod:false,
+    nota:"",
+  });
+  const [textoEjemplo, setTextoEjemplo] = useState("");
+  const set = (k,v) => setForm(p=>({...p,[k]:v}));
+ 
+  const EMOJIS = ["📦","🔴","✨","👑","⚙️","🟠","🟢","🔵","🟣","⭐","🎯","🏆"];
+  const COLORES = ["#ef4444","#f59e0b","#8b5cf6","#06b6d4","#ec4899","#10b981","#f97316","#3b82f6","#94a3b8"];
+ 
+  return (
+    <div style={{ background:"#111827",border:"1px solid #ffffff10",borderRadius:16,padding:20,marginBottom:16 }}>
+      <div style={{ color:"#fff",fontWeight:800,fontSize:15,marginBottom:16 }}>➕ Nueva bodega</div>
+ 
+      {/* Nombre */}
+      <div style={{ marginBottom:12 }}>
+        <label style={{ color:"#ffffff50",fontSize:11,display:"block",marginBottom:4 }}>NOMBRE DE LA BODEGA</label>
+        <input value={form.nombre} onChange={e=>set("nombre",e.target.value.toUpperCase())} placeholder="Ej: BODEGA HOLA" style={{ width:"100%",background:"#1e293b",border:"1px solid #ffffff15",borderRadius:8,padding:"9px 12px",fontSize:14,color:"#fff",fontWeight:700,outline:"none",boxSizing:"border-box" }} />
+      </div>
+ 
+      {/* Emoji y color */}
+      <div style={{ marginBottom:12 }}>
+        <label style={{ color:"#ffffff50",fontSize:11,display:"block",marginBottom:4 }}>ÍCONO</label>
+        <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
+          {EMOJIS.map(e=>(
+            <button key={e} onClick={()=>set("emoji",e)} style={{ width:36,height:36,background:form.emoji===e?"#ffffff20":"#ffffff08",border:`2px solid ${form.emoji===e?"#fff":"transparent"}`,borderRadius:8,fontSize:18,cursor:"pointer" }}>{e}</button>
+          ))}
+        </div>
+      </div>
+ 
+      <div style={{ marginBottom:12 }}>
+        <label style={{ color:"#ffffff50",fontSize:11,display:"block",marginBottom:4 }}>COLOR</label>
+        <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
+          {COLORES.map(c=>(
+            <button key={c} onClick={()=>set("color",c)} style={{ width:28,height:28,background:c,border:`3px solid ${form.color===c?"#fff":"transparent"}`,borderRadius:6,cursor:"pointer" }} />
+          ))}
+        </div>
+      </div>
+ 
+      {/* Tipo de precio */}
+      <div style={{ marginBottom:12 }}>
+        <label style={{ color:"#ffffff50",fontSize:11,display:"block",marginBottom:4 }}>¿CÓMO MANDA LOS PRECIOS?</label>
+        {TIPOS_PRECIO.map(t=>(
+          <div key={t.key} onClick={()=>set("tipo",t.key)} style={{ background:form.tipo===t.key?"#7c3aed15":"#ffffff05",border:`1.5px solid ${form.tipo===t.key?"#7c3aed":"#ffffff0a"}`,borderRadius:8,padding:"8px 12px",marginBottom:6,cursor:"pointer" }}>
+            <div style={{ color:form.tipo===t.key?"#a78bfa":"#fff",fontWeight:form.tipo===t.key?700:400,fontSize:12 }}>{t.label}</div>
+            <div style={{ color:"#ffffff40",fontSize:11,marginTop:2 }}>{t.desc}</div>
+          </div>
+        ))}
+      </div>
+ 
+      {/* Se suma */}
+      <div style={{ marginBottom:12 }}>
+        <label style={{ color:"#ffffff50",fontSize:11,display:"block",marginBottom:4 }}>¿CUÁNTO SE SUMA AL PRECIO?</label>
+        <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
+          {[0,3000,5000,8000,10000,15000].map(v=>(
+            <button key={v} onClick={()=>set("seSuma",v)} style={{ background:form.seSuma===v?"#7c3aed":"#ffffff08",border:`1px solid ${form.seSuma===v?"#7c3aed":"#ffffff12"}`,borderRadius:8,color:"#fff",padding:"7px 11px",fontSize:12,cursor:"pointer",fontWeight:form.seSuma===v?700:400 }}>
+              {v===0?"Sin sumar":`+$${v.toLocaleString("es-CO")}`}
+            </button>
+          ))}
+        </div>
+      </div>
+ 
+      {/* Características */}
+      <div style={{ marginBottom:12 }}>
+        <label style={{ color:"#ffffff50",fontSize:11,display:"block",marginBottom:6 }}>¿QUÉ INCLUYE EL MENSAJE DE ESTA BODEGA?</label>
+        <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:6 }}>
+          {[
+            ["mandaNombre","Manda nombre del producto","✅"],
+            ["mandaTallas","Manda tallas específicas","👟"],
+            ["mandaCaja","Manda precio por caja","📦"],
+            ["mandaCod","Manda código (COD)","🔢"],
+          ].map(([k,l,ico])=>(
+            <button key={k} onClick={()=>set(k,!form[k])} style={{ background:form[k]?"#25d36615":"#ffffff06",border:`1.5px solid ${form[k]?"#25d36640":"#ffffff10"}`,borderRadius:8,color:form[k]?"#25d366":"#ffffff40",padding:"8px 10px",fontSize:11,cursor:"pointer",textAlign:"left",fontWeight:form[k]?700:400 }}>
+              {ico} {l} {form[k]?"✓":""}
+            </button>
+          ))}
+        </div>
+        {!form.mandaNombre && (
+          <div style={{ marginTop:8,background:"#f59e0b12",border:"1px solid #f59e0b30",borderRadius:8,padding:"7px 10px",color:"#f59e0b",fontSize:11 }}>
+            ⚠️ Como no manda nombre, el trabajador tendrá que escribirlo manualmente en cada tarjeta.
+          </div>
+        )}
+        {!form.mandaTallas && (
+          <div style={{ marginTop:8,background:"#7c3aed12",border:"1px solid #7c3aed30",borderRadius:8,padding:"7px 10px",color:"#a78bfa",fontSize:11 }}>
+            💡 Las tallas se asignarán automáticamente según el género (Hombre: 40-44, Dama: 36-39).
+          </div>
+        )}
+      </div>
+ 
+      {/* Nota/descripción */}
+      <div style={{ marginBottom:12 }}>
+        <label style={{ color:"#ffffff50",fontSize:11,display:"block",marginBottom:4 }}>NOTA (cómo manda los mensajes — para referencia)</label>
+        <textarea value={form.nota} onChange={e=>set("nota",e.target.value)} placeholder="Ej: Manda nombre, precio venta y precio por caja con código" rows={2} style={{ width:"100%",background:"#1e293b",border:"1px solid #ffffff15",borderRadius:8,padding:"8px 11px",fontSize:12,color:"#fff",outline:"none",resize:"none",fontFamily:"inherit",boxSizing:"border-box" }} />
+      </div>
+ 
+      {/* Ejemplo */}
+      <div style={{ marginBottom:16 }}>
+        <label style={{ color:"#ffffff50",fontSize:11,display:"block",marginBottom:4 }}>🧪 PEGA UN EJEMPLO DE CÓMO MANDA LOS MENSAJES</label>
+        <textarea value={textoEjemplo} onChange={e=>setTextoEjemplo(e.target.value)} placeholder={"Ej:\nNIKE AIR MAX CABALLERO\nPRECIO: $80.000\nCOD: 1234\nPOR CAJA: $70.000"} rows={4} style={{ width:"100%",background:"#0a0f1a",border:"1px solid #ffffff10",borderRadius:8,padding:"8px 11px",fontSize:12,color:"#e9edef",outline:"none",resize:"none",fontFamily:"monospace",boxSizing:"border-box" }} />
+        {textoEjemplo && (
+          <div style={{ marginTop:8,background:"#005c4b",borderRadius:"4px 12px 12px 12px",padding:"10px 12px" }}>
+            <div style={{ color:"#ffffff50",fontSize:10,marginBottom:4 }}>ASÍ QUEDARÍA (aproximado):</div>
+            <pre style={{ margin:0,color:"#e9edef",fontSize:12,lineHeight:1.65,whiteSpace:"pre-wrap",fontFamily:"inherit" }}>
+              {`*${textoEjemplo.split("\n")[0].toUpperCase()}* 💣🔥\n\nNumeración Hombre 🧔 *(40 AL 44 EUR)*\n\n*Precio: $ ${((parseInt(textoEjemplo.match(/\d{2,3}\.?\d{3}/)?.[0]?.replace(".",""))||80000) + form.seSuma).toLocaleString("es-CO")}*`}
+            </pre>
+          </div>
+        )}
+      </div>
+ 
+      <div style={{ display:"flex",gap:8 }}>
+        <button onClick={onCancelar} style={{ flex:1,background:"#ffffff08",border:"1px solid #ffffff12",borderRadius:10,color:"#fff",padding:"11px 0",fontSize:13,cursor:"pointer" }}>Cancelar</button>
+        <button onClick={()=>onGuardar(form)} disabled={!form.nombre} style={{ flex:2,background:form.nombre?"linear-gradient(135deg,#25d366,#128c7e)":"#ffffff10",border:"none",borderRadius:10,color:"#fff",padding:"11px 0",fontSize:13,fontWeight:700,cursor:form.nombre?"pointer":"default",opacity:form.nombre?1:0.5 }}>
+          ✅ Agregar bodega
+        </button>
+      </div>
+    </div>
+  );
+}
+ 
 function ConfigPage() {
   const { isConnected } = React.useContext(WaCtx);
   const [seccion, setSeccion] = useState("bodegas");
@@ -426,9 +517,11 @@ function ConfigPage() {
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [editando, setEditando] = useState(null);
   const [showBodegaForm, setShowBodegaForm] = useState(false);
+  const [showNuevaBodegaForm, setShowNuevaBodegaForm] = useState(false);
   const [showComForm, setShowComForm] = useState(false);
   const [form, setForm] = useState({ name:"", wa_group_id:"", price_adjust:5000 });
   const [comForm, setComForm] = useState({ name:"", wa_group_id:"" });
+  const [reglasCustom, setReglasCustom] = useState([]);
  
   const load = async () => {
     const [b,c] = await Promise.all([bodegasApi.list(), comunidadesApi.list()]);
@@ -446,6 +539,11 @@ function ConfigPage() {
   const addBodega = async () => { await bodegasApi.create(form); setShowBodegaForm(false); setGroups([]); setForm({name:"",wa_group_id:"",price_adjust:5000}); load(); };
   const addCom = async () => { await comunidadesApi.create(comForm); setShowComForm(false); setComForm({name:"",wa_group_id:""}); load(); };
  
+  const agregarNuevaRegla = (regla) => {
+    setReglasCustom(p => [...p, { ...regla, id: Date.now().toString() }]);
+    setShowNuevaBodegaForm(false);
+  };
+ 
   const getBodegaStyle = (name) => {
     const n=(name||"").toLowerCase();
     if(n.includes("mero")) return {emoji:"🔴",color:"#ef4444"};
@@ -455,6 +553,8 @@ function ConfigPage() {
     if(n.includes("quina")) return {emoji:"⚙️",color:"#06b6d4"};
     return {emoji:"📦",color:"#ffffff40"};
   };
+ 
+  const todasLasReglas = [...REGLAS_DEFAULT, ...reglasCustom];
  
   return (
     <div style={{ padding:"14px 16px 80px" }}>
@@ -519,18 +619,16 @@ function ConfigPage() {
               </div>
             );
           })}
-          {!showBodegaForm ? (
-            <button onClick={()=>setShowBodegaForm(true)} style={{ background:"#ffffff04",border:"1px dashed #ffffff15",borderRadius:12,color:"#ffffff40",width:"100%",padding:"13px 0",fontSize:13,cursor:"pointer" }}>+ Agregar bodega manual</button>
-          ) : (
-            <div style={{ background:"#ffffff04",border:"1px solid #ffffff0f",borderRadius:14,padding:16 }}>
-              <div style={{ color:"#fff",fontWeight:700,marginBottom:12 }}>📥 Nueva bodega</div>
+          {showBodegaForm && (
+            <div style={{ background:"#ffffff04",border:"1px solid #ffffff0f",borderRadius:14,padding:16,marginBottom:10 }}>
+              <div style={{ color:"#fff",fontWeight:700,marginBottom:12 }}>📥 Confirmar bodega</div>
               <div style={{ marginBottom:10 }}>
                 <label style={{ color:"#ffffff40",fontSize:11,display:"block",marginBottom:4 }}>Nombre</label>
                 <input value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} style={{ width:"100%",background:"#1e293b",border:"1px solid #ffffff15",borderRadius:8,padding:"8px 11px",fontSize:13,color:"#fff",outline:"none",boxSizing:"border-box" }} />
               </div>
               <div style={{ marginBottom:12 }}>
                 <label style={{ color:"#ffffff40",fontSize:11,display:"block",marginBottom:4 }}>Se suma</label>
-                <div style={{ display:"flex",gap:5 }}>
+                <div style={{ display:"flex",gap:5,flexWrap:"wrap" }}>
                   {[0,3000,5000,8000,10000,15000].map(v=>(
                     <button key={v} onClick={()=>setForm(p=>({...p,price_adjust:v}))} style={{ background:form.price_adjust===v?"#7c3aed":"#ffffff08",border:`1px solid ${form.price_adjust===v?"#7c3aed":"#ffffff12"}`,borderRadius:7,color:"#fff",padding:"5px 8px",fontSize:11,cursor:"pointer" }}>
                       {v===0?"0":`+$${v/1000}k`}
@@ -543,6 +641,9 @@ function ConfigPage() {
                 <button onClick={addBodega} style={{ flex:2,background:"linear-gradient(135deg,#25d366,#128c7e)",border:"none",borderRadius:10,color:"#fff",padding:"10px 0",fontSize:13,fontWeight:700,cursor:"pointer" }}>✅ Guardar</button>
               </div>
             </div>
+          )}
+          {!showBodegaForm && (
+            <button onClick={()=>setShowBodegaForm(true)} style={{ background:"#ffffff04",border:"1px dashed #ffffff15",borderRadius:12,color:"#ffffff40",width:"100%",padding:"13px 0",fontSize:13,cursor:"pointer" }}>+ Agregar bodega manual</button>
           )}
         </div>
       )}
@@ -582,22 +683,34 @@ function ConfigPage() {
         <div>
           <div style={{ background:"#7c3aed12",border:"1px solid #7c3aed25",borderRadius:10,padding:"10px 14px",marginBottom:16 }}>
             <div style={{ color:"#a78bfa",fontWeight:700,fontSize:13,marginBottom:4 }}>🔧 Reglas de la IA por bodega</div>
-            <div style={{ color:"#ffffff60",fontSize:12,lineHeight:1.7 }}>Si una bodega cambia su forma de mandar precios, aquí lo ajustas. Sin código, sin llamar a nadie.</div>
+            <div style={{ color:"#ffffff60",fontSize:12,lineHeight:1.7 }}>Aquí defines cómo la IA procesa cada bodega. Si una bodega cambia su formato o agregas una nueva, lo ajustas acá. Sin código.</div>
           </div>
-          {[
-            {nombre:"DINASTÍA",emoji:"👑",color:"#f59e0b",tipo:"CUADRE / PUBLICÓ",seSuma:"+$5.000",tallas:"Las de la bodega",nombreAuto:"Automático"},
-            {nombre:"D'MERO SPORT",emoji:"🔴",color:"#ef4444",tipo:"PRECIO + CODIGO + CAJA",seSuma:"+$5.000",tallas:"Las de la bodega",nombreAuto:"Automático"},
-            {nombre:"BODEGA MAYLO",emoji:"📦",color:"#ec4899",tipo:"COD + precio + CAJA",seSuma:"+$5.000",tallas:"Las de la bodega",nombreAuto:"Automático"},
-            {nombre:"FYM",emoji:"✨",color:"#8b5cf6",tipo:"PRECIO + Ref + ¿PROMO?",seSuma:"+$5.000",tallas:"Las de la bodega",nombreAuto:"Automático"},
-            {nombre:"MÁQUINA",emoji:"⚙️",color:"#06b6d4",tipo:"Solo Cod + precio",seSuma:"+$15.000",tallas:"Auto por género",nombreAuto:"⚠️ Tú lo escribes"},
-          ].map(b=>(
-            <div key={b.nombre} style={{ background:"#ffffff04",border:`1px solid ${b.color}20`,borderRadius:14,padding:14,marginBottom:10 }}>
-              <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:10 }}>
-                <span style={{ fontSize:20 }}>{b.emoji}</span>
-                <span style={{ fontWeight:800,fontSize:14,color:b.color }}>{b.nombre}</span>
+ 
+          {/* Bodegas existentes */}
+          {todasLasReglas.map(b=>(
+            <div key={b.id} style={{ background:"#ffffff04",border:`1px solid ${b.color}20`,borderRadius:14,padding:14,marginBottom:10 }}>
+              <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10 }}>
+                <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                  <span style={{ fontSize:20 }}>{b.emoji}</span>
+                  <span style={{ fontWeight:800,fontSize:14,color:b.color }}>{b.nombre}</span>
+                  {b.id && !REGLAS_DEFAULT.find(r=>r.id===b.id) && (
+                    <span style={{ background:"#25d36620",border:"1px solid #25d36635",borderRadius:5,padding:"1px 7px",fontSize:10,color:"#25d366",fontWeight:700 }}>NUEVA</span>
+                  )}
+                </div>
+                {!REGLAS_DEFAULT.find(r=>r.id===b.id) && (
+                  <button onClick={()=>setReglasCustom(p=>p.filter(r=>r.id!==b.id))} style={{ background:"#ef444410",border:"1px solid #ef444425",borderRadius:7,color:"#ef4444",padding:"4px 8px",fontSize:11,cursor:"pointer" }}>✕ Quitar</button>
+                )}
               </div>
+              <div style={{ color:"#ffffff50",fontSize:11,marginBottom:8,fontStyle:"italic" }}>{b.nota}</div>
               <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:6 }}>
-                {[["Tipo de precio",b.tipo],["Se suma",b.seSuma],["Tallas",b.tallas],["Nombre",b.nombreAuto]].map(([k,v])=>(
+                {[
+                  ["Tipo de precio", TIPOS_PRECIO.find(t=>t.key===b.tipo)?.label || b.tipo],
+                  ["Se suma", `+$${Number(b.seSuma).toLocaleString("es-CO")}`],
+                  ["Tallas", b.mandaTallas?"Las de la bodega":"Auto por género"],
+                  ["Nombre", b.mandaNombre?"Automático":"⚠️ Tú lo escribes"],
+                  ["Incluye COD", b.mandaCod?"Sí":"No"],
+                  ["Incluye CAJA", b.mandaCaja?"Sí":"No"],
+                ].map(([k,v])=>(
                   <div key={k} style={{ background:"#ffffff05",borderRadius:8,padding:"7px 10px" }}>
                     <div style={{ color:"#ffffff30",fontSize:9,marginBottom:2 }}>{k}</div>
                     <div style={{ color:"#fff",fontSize:11,fontWeight:600 }}>{v}</div>
@@ -606,6 +719,15 @@ function ConfigPage() {
               </div>
             </div>
           ))}
+ 
+          {/* Formulario nueva bodega */}
+          {showNuevaBodegaForm ? (
+            <FormNuevaBodega onGuardar={agregarNuevaRegla} onCancelar={()=>setShowNuevaBodegaForm(false)} />
+          ) : (
+            <button onClick={()=>setShowNuevaBodegaForm(true)} style={{ background:"linear-gradient(135deg,#7c3aed20,#00d4aa15)",border:"1px dashed #7c3aed50",borderRadius:12,color:"#a78bfa",width:"100%",padding:"14px 0",fontSize:13,fontWeight:700,cursor:"pointer" }}>
+              ➕ Agregar nueva bodega con sus reglas
+            </button>
+          )}
         </div>
       )}
     </div>
