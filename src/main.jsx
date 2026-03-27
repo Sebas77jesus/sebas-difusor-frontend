@@ -1,15 +1,29 @@
-// src/main.jsx
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate, NavLink, useNavigate } from "react-router-dom";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { authApi, inboxApi, bodegasApi, comunidadesApi, whatsappApi, startDifusion } from "./api/client";
 
-const fmt = (n) => n ? `$ ${Number(n).toLocaleString("es-CO")}` : "—";
-const gIcon = (g) => g === "Hombre" ? "🧔" : g === "Dama" ? "👱‍♀️" : "🧔👱‍♀️";
-const ALL_SIZES = ["35","36","37","38","39","40","41","42","43","44","45","46"];
 const BASE_URL = import.meta.env.VITE_API_URL || "/api";
+const gIcon = (g) => g === "Hombre" ? "🧔" : g === "Dama" ? "👱‍♀️" : "🧔👱‍♀️";
+const fmt = (n) => n ? `$ ${Number(n).toLocaleString("es-CO")}` : "—";
 
+function buildCaption(item) {
+  const gi = gIcon(item.genero || "Hombre");
+  const tallas = item.tallas || "CONSULTAR TALLAS";
+  let txt = "";
+  if (item.es_promo) txt += `🚨 *PROMO PROMO PROMO* 🚨\n*SEBAS SHOES* 👟\n⚠️ *NO CAMBIO - NO GARANTÍA*\n\n`;
+  txt += `*${(item.nombre || "** NOMBRE **").toUpperCase()}* 💣🔥\n\n`;
+  txt += `Numeración ${item.genero || "Hombre"} ${gi} *(${tallas})*\n\n`;
+  txt += `*Precio: $ ${Number((item.precio_bodega || 0) + (item.price_adjust || 5000)).toLocaleString("es-CO")}*`;
+  if (item.tiene_caja && item.precio_caja) {
+    txt += `\n\n*DISPONIBLE POR CAJA* 📦 $ ${Number(item.precio_caja).toLocaleString("es-CO")}`;
+  }
+  if (item.cod) txt += `\n\nCOD ${item.cod}`;
+  return txt;
+}
+
+// ── AUTH ──────────────────────────────────────────────────────────────────────
 const AuthCtx = React.createContext(null);
 function AuthProvider({ children }) {
   const [user, setUser] = useState(() => { try { return JSON.parse(localStorage.getItem("sd_user")); } catch { return null; } });
@@ -28,30 +42,34 @@ function AuthProvider({ children }) {
   return <AuthCtx.Provider value={{ user, loading, login, logout }}>{children}</AuthCtx.Provider>;
 }
 
+// ── WA STATUS ─────────────────────────────────────────────────────────────────
 const WaCtx = React.createContext(null);
 function WaProvider({ children }) {
   const [waStatus, setWaStatus] = useState("disconnected");
   const [qr, setQr] = useState(null);
   const { user } = React.useContext(AuthCtx);
+
   useEffect(() => {
     if (!user) return;
-    const tk = localStorage.getItem("sd_token");
-    const es = new EventSource(`${BASE_URL}/whatsapp/events?token=${tk}`);
-    es.addEventListener("status", e => { const d = JSON.parse(e.data); setWaStatus(d.status); if(d.status==="connected") setQr(null); });
-    es.addEventListener("qr", e => { setQr(JSON.parse(e.data).qr); setWaStatus("qr_ready"); });
-    es.onerror = () => {};
-    return () => es.close();
+    const poll = async () => {
+      try {
+        const s = await whatsappApi.status();
+        setWaStatus(s.status);
+        if (s.hasQR) {
+          try { const d = await whatsappApi.qr(); if (d.qr) setQr(d.qr); } catch {}
+        }
+        if (s.isConnected) setQr(null);
+      } catch {}
+    };
+    poll();
+    const iv = setInterval(poll, 4000);
+    return () => clearInterval(iv);
   }, [user]);
+
   return <WaCtx.Provider value={{ waStatus, qr, isConnected: waStatus === "connected" }}>{children}</WaCtx.Provider>;
 }
 
-const card = { background: "#ffffff08", border: "1px solid #ffffff10", borderRadius: 14 };
-const btn = (color = "#7c3aed", full = false) => ({
-  background: color, border: "none", borderRadius: 12, color: "#fff",
-  padding: full ? "13px 0" : "10px 18px", width: full ? "100%" : undefined,
-  fontSize: 14, fontWeight: 700, cursor: "pointer",
-});
-
+// ── LOGIN ─────────────────────────────────────────────────────────────────────
 function LoginPage() {
   const { login } = React.useContext(AuthCtx);
   const nav = useNavigate();
@@ -64,25 +82,25 @@ function LoginPage() {
     try { await login(email, pass); nav("/"); } catch (e) { setErr(e.message); } finally { setLoading(false); }
   };
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-      <div style={{ width: "100%", maxWidth: 380 }}>
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ fontSize: 56, marginBottom: 10 }}>👟</div>
-          <div style={{ fontSize: 22, fontWeight: 900 }}>SebasDifusor</div>
-          <div style={{ color: "#ffffff40", fontSize: 13, marginTop: 4 }}>Sistema de difusión con IA</div>
+    <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"#0a0f1a", padding:20 }}>
+      <div style={{ width:"100%", maxWidth:360 }}>
+        <div style={{ textAlign:"center", marginBottom:32 }}>
+          <div style={{ width:60,height:60,borderRadius:16,background:"linear-gradient(135deg,#25d366,#128c7e)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,margin:"0 auto 12px" }}>👟</div>
+          <div style={{ fontSize:22,fontWeight:900,color:"#fff" }}>SebasDifusor</div>
+          <div style={{ color:"#ffffff40",fontSize:13,marginTop:4 }}>Sistema de difusión automática</div>
         </div>
-        <form onSubmit={submit} style={{ ...card, padding: 24 }}>
-          {err && <div style={{ background:"#ef444412", border:"1px solid #ef444430", borderRadius:9, padding:"10px 14px", marginBottom:16, color:"#ef4444", fontSize:13 }}>⚠️ {err}</div>}
-          <div style={{ marginBottom: 14 }}>
-            <label style={{ color:"#ffffff50", fontSize:11, display:"block", marginBottom:5 }}>Email</label>
-            <input value={email} onChange={e=>setEmail(e.target.value)} style={{ width:"100%", background:"#ffffff08", border:"1px solid #ffffff15", borderRadius:9, padding:"10px 13px", fontSize:14, outline:"none" }} />
+        <form onSubmit={submit} style={{ background:"#ffffff06",border:"1px solid #ffffff10",borderRadius:16,padding:24 }}>
+          {err && <div style={{ background:"#ef444412",border:"1px solid #ef444430",borderRadius:9,padding:"10px 14px",marginBottom:16,color:"#ef4444",fontSize:13 }}>⚠️ {err}</div>}
+          <div style={{ marginBottom:14 }}>
+            <label style={{ color:"#ffffff50",fontSize:11,display:"block",marginBottom:5 }}>Email</label>
+            <input value={email} onChange={e=>setEmail(e.target.value)} style={{ width:"100%",background:"#ffffff08",border:"1px solid #ffffff15",borderRadius:9,padding:"10px 13px",fontSize:14,color:"#fff",outline:"none",boxSizing:"border-box" }} />
           </div>
-          <div style={{ marginBottom: 22 }}>
-            <label style={{ color:"#ffffff50", fontSize:11, display:"block", marginBottom:5 }}>Contraseña</label>
-            <input type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="••••••••" style={{ width:"100%", background:"#ffffff08", border:"1px solid #ffffff15", borderRadius:9, padding:"10px 13px", fontSize:14, outline:"none" }} />
+          <div style={{ marginBottom:22 }}>
+            <label style={{ color:"#ffffff50",fontSize:11,display:"block",marginBottom:5 }}>Contraseña</label>
+            <input type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="••••••••" style={{ width:"100%",background:"#ffffff08",border:"1px solid #ffffff15",borderRadius:9,padding:"10px 13px",fontSize:14,color:"#fff",outline:"none",boxSizing:"border-box" }} />
           </div>
-          <button type="submit" disabled={loading} style={{ ...btn("linear-gradient(135deg,#f59e0b,#ef4444)"), width:"100%", padding:"13px 0", fontSize:15, opacity: loading ? 0.5 : 1 }}>
-            {loading ? "Entrando..." : "Ingresar"}
+          <button type="submit" disabled={loading} style={{ background:"linear-gradient(135deg,#f59e0b,#ef4444)",border:"none",borderRadius:12,color:"#fff",width:"100%",padding:"13px 0",fontSize:15,fontWeight:700,cursor:"pointer",opacity:loading?0.5:1 }}>
+            {loading?"Entrando...":"Ingresar"}
           </button>
         </form>
       </div>
@@ -90,23 +108,163 @@ function LoginPage() {
   );
 }
 
+// ── TARJETA PRODUCTO ──────────────────────────────────────────────────────────
+function TarjetaProducto({ msg: msgInicial, selected, onToggle, onUpdate }) {
+  const [msg, setMsg] = useState(msgInicial);
+  const [editando, setEditando] = useState(!msg.nombre);
+  const [saving, setSaving] = useState(false);
+  const edit = (k, v) => setMsg(p => ({ ...p, [k]: v }));
+  const caption = buildCaption(msg);
+
+  const guardar = async () => {
+    setSaving(true);
+    try {
+      const updated = await inboxApi.update(msg.id, {
+        nombre: msg.nombre, genero: msg.genero, tallas: msg.tallas,
+        precio_bodega: msg.precio_bodega, price_adjust: msg.price_adjust,
+        tiene_caja: msg.tiene_caja, precio_caja: msg.precio_caja, es_promo: msg.es_promo,
+        caption_final: buildCaption(msg),
+      });
+      onUpdate(updated);
+      setEditando(false);
+    } catch {} finally { setSaving(false); }
+  };
+
+  return (
+    <div style={{ background:selected?"#25d36606":"#ffffff04", border:`1.5px solid ${selected?"#25d366":"#ffffff08"}`, borderRadius:16, marginBottom:10, overflow:"hidden" }}>
+
+      {/* Layout horizontal: foto pequeña izq + texto derecha */}
+      <div style={{ display:"flex" }}>
+        {/* Foto */}
+        <div style={{ width:90, flexShrink:0, background:"#111b21", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, color:"#ffffff10", position:"relative", minHeight:130 }}>
+          {msg.media_path
+            ? <img src={msg.media_path} alt="" style={{ width:"100%",height:"100%",objectFit:"cover",position:"absolute",inset:0 }} />
+            : "👟"
+          }
+          <div onClick={onToggle} style={{ position:"absolute",top:7,left:7,width:24,height:24,borderRadius:7,background:selected?"#25d366":"#00000099",border:`2px solid ${selected?"#25d366":"#ffffff50"}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:13,fontWeight:900,color:"#fff",zIndex:2 }}>
+            {selected?"✓":""}
+          </div>
+          {msg.es_promo && <div style={{ position:"absolute",bottom:6,left:4,background:"#ef4444",borderRadius:5,padding:"2px 5px",fontSize:9,color:"#fff",fontWeight:800,zIndex:2 }}>🚨PROMO</div>}
+        </div>
+
+        {/* Caption principal */}
+        <div style={{ flex:1, padding:"11px 12px" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+            {msg.cod && <div style={{ background:"#ffffff0a",borderRadius:5,padding:"2px 7px",fontSize:10,color:"#ffffff50",fontWeight:700 }}>COD {msg.cod}</div>}
+            <button onClick={() => setEditando(!editando)} style={{ marginLeft:"auto",background:editando?"#f59e0b20":"#ffffff08",border:`1px solid ${editando?"#f59e0b40":"#ffffff10"}`,borderRadius:7,color:editando?"#f59e0b":"#ffffff50",padding:"4px 9px",fontSize:11,cursor:"pointer",fontWeight:editando?700:400 }}>
+              {editando?"✅ Listo":"✏️ Editar"}
+            </button>
+          </div>
+          {/* Burbuja WhatsApp */}
+          <div style={{ background:"#005c4b",borderRadius:"4px 12px 12px 12px",padding:"9px 11px" }}>
+            <pre style={{ margin:0,color:"#e9edef",fontSize:12,lineHeight:1.65,whiteSpace:"pre-wrap",fontFamily:"inherit" }}>{caption}</pre>
+            <div style={{ textAlign:"right",fontSize:10,color:"#8696a088",marginTop:4 }}>
+              {new Date().toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"})} ✓✓
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Panel edición inline */}
+      {editando && (
+        <div style={{ borderTop:"1px solid #ffffff08",padding:"12px 14px",background:"#0d1520" }}>
+          <div style={{ color:"#f59e0b",fontSize:11,fontWeight:700,marginBottom:10 }}>✏️ Corregir si la IA procesó algo mal:</div>
+
+          <div style={{ marginBottom:8 }}>
+            <label style={{ color:"#ffffff40",fontSize:10,display:"block",marginBottom:3 }}>NOMBRE DEL PRODUCTO</label>
+            <input value={msg.nombre || ""} onChange={e=>edit("nombre",e.target.value.toUpperCase())} placeholder={!msg.nombre?"⚠️ MÁQUINA no manda nombre — escríbelo aquí":"Nombre"} style={{ width:"100%",background:"#1e293b",border:`1.5px solid ${!msg.nombre?"#f59e0b":"#ffffff15"}`,borderRadius:8,padding:"8px 11px",fontSize:13,color:"#fff",fontWeight:700,outline:"none",boxSizing:"border-box" }} />
+          </div>
+
+          <div style={{ marginBottom:8 }}>
+            <label style={{ color:"#ffffff40",fontSize:10,display:"block",marginBottom:3 }}>GÉNERO</label>
+            <div style={{ display:"flex",gap:5 }}>
+              {["Hombre","Dama","Hombre Y Dama"].map(g=>(
+                <button key={g} onClick={()=>edit("genero",g)} style={{ flex:1,background:msg.genero===g?"#7c3aed":"#ffffff08",border:`1px solid ${msg.genero===g?"#7c3aed":"#ffffff12"}`,borderRadius:7,color:"#fff",padding:"6px 4px",fontSize:11,cursor:"pointer",fontWeight:msg.genero===g?700:400 }}>
+                  {g==="Hombre"?"🧔 H":g==="Dama"?"👱‍♀️ D":"🧔👱‍♀️ H+D"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginBottom:8 }}>
+            <label style={{ color:"#ffffff40",fontSize:10,display:"block",marginBottom:3 }}>TALLAS</label>
+            <input value={msg.tallas || ""} onChange={e=>edit("tallas",e.target.value.toUpperCase())} style={{ width:"100%",background:"#1e293b",border:"1px solid #ffffff15",borderRadius:8,padding:"7px 10px",fontSize:12,color:"#fff",outline:"none",boxSizing:"border-box" }} />
+          </div>
+
+          <div style={{ marginBottom:8 }}>
+            <label style={{ color:"#ffffff40",fontSize:10,display:"block",marginBottom:3 }}>PRECIO BODEGA → SE SUMA → TU PRECIO</label>
+            <div style={{ display:"flex",gap:6,alignItems:"center" }}>
+              <input type="number" value={msg.precio_bodega||0} onChange={e=>edit("precio_bodega",parseInt(e.target.value)||0)} style={{ flex:1,background:"#1e293b",border:"1px solid #ffffff15",borderRadius:8,padding:"7px 10px",fontSize:12,color:"#fff",outline:"none" }} />
+              <span style={{ color:"#ffffff30" }}>+</span>
+              <select value={msg.price_adjust||5000} onChange={e=>edit("price_adjust",parseInt(e.target.value))} style={{ background:"#1e293b",border:"1px solid #ffffff15",borderRadius:8,padding:"7px 8px",fontSize:12,color:"#fff",outline:"none" }}>
+                {[0,3000,5000,8000,10000,15000].map(v=><option key={v} value={v}>{v===0?"0":`$${v.toLocaleString("es-CO")}`}</option>)}
+              </select>
+              <span style={{ color:"#ffffff30" }}>=</span>
+              <div style={{ background:"#00d4aa15",border:"1px solid #00d4aa30",borderRadius:8,padding:"7px 10px",color:"#00d4aa",fontWeight:800,fontSize:13,whiteSpace:"nowrap" }}>
+                ${((msg.precio_bodega||0)+(msg.price_adjust||5000)).toLocaleString("es-CO")}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display:"flex",gap:6,marginBottom:8 }}>
+            <button onClick={()=>edit("tiene_caja",!msg.tiene_caja)} style={{ flex:1,background:msg.tiene_caja?"#00d4aa15":"#ffffff06",border:`1px solid ${msg.tiene_caja?"#00d4aa35":"#ffffff10"}`,borderRadius:8,color:msg.tiene_caja?"#00d4aa":"#ffffff40",padding:"7px 0",fontSize:11,cursor:"pointer" }}>
+              📦 {msg.tiene_caja?"Tiene caja ✓":"Sin caja"}
+            </button>
+            <button onClick={()=>edit("es_promo",!msg.es_promo)} style={{ flex:1,background:msg.es_promo?"#ef444415":"#ffffff06",border:`1px solid ${msg.es_promo?"#ef444435":"#ffffff10"}`,borderRadius:8,color:msg.es_promo?"#ef4444":"#ffffff40",padding:"7px 0",fontSize:11,cursor:"pointer" }}>
+              🚨 {msg.es_promo?"PROMO ✓":"No es promo"}
+            </button>
+          </div>
+
+          {msg.tiene_caja && (
+            <div style={{ marginBottom:8 }}>
+              <label style={{ color:"#ffffff40",fontSize:10,display:"block",marginBottom:3 }}>PRECIO POR CAJA</label>
+              <input type="number" value={msg.precio_caja||0} onChange={e=>edit("precio_caja",parseInt(e.target.value)||0)} style={{ width:"100%",background:"#1e293b",border:"1px solid #00d4aa30",borderRadius:8,padding:"7px 10px",fontSize:12,color:"#00d4aa",outline:"none",boxSizing:"border-box" }} />
+            </div>
+          )}
+
+          <button onClick={guardar} disabled={saving} style={{ background:"linear-gradient(135deg,#25d366,#128c7e)",border:"none",borderRadius:10,color:"#fff",width:"100%",padding:"10px 0",fontSize:13,fontWeight:700,cursor:"pointer",marginTop:4,opacity:saving?0.5:1 }}>
+            {saving?"Guardando...":"✅ Guardar cambios"}
+          </button>
+        </div>
+      )}
+
+      <div style={{ padding:"8px 14px",borderTop:"1px solid #ffffff06",display:"flex",justifyContent:"flex-end" }}>
+        <button onClick={onToggle} style={{ background:selected?"#25d36620":"#ffffff08",border:`1.5px solid ${selected?"#25d366":"#ffffff12"}`,borderRadius:8,color:selected?"#25d366":"#ffffff40",padding:"6px 14px",fontSize:12,fontWeight:selected?700:400,cursor:"pointer" }}>
+          {selected?"✓ Seleccionado":"Seleccionar"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── INBOX PAGE ────────────────────────────────────────────────────────────────
+const BODEGAS_TABS = [
+  { key: "all", label: "Todas", emoji: "📥" },
+  { key: "dmero", label: "D'Mero", emoji: "🔴", color: "#ef4444" },
+  { key: "fym", label: "FYM", emoji: "✨", color: "#8b5cf6" },
+  { key: "maylo", label: "Maylo", emoji: "📦", color: "#ec4899" },
+  { key: "dinastia", label: "Dinastía", emoji: "👑", color: "#f59e0b" },
+  { key: "maquina", label: "Máquina", emoji: "⚙️", color: "#06b6d4" },
+];
+
 function InboxPage() {
   const nav = useNavigate();
-  const { isConnected } = React.useContext(WaCtx);
   const [msgs, setMsgs] = useState([]);
-  const [stats, setStats] = useState({});
-  const [selected, setSelected] = useState(new Set());
   const [loading, setLoading] = useState(true);
-  const [editingId, setEditingId] = useState(null);
-  const [tab, setTab] = useState("ready");
+  const [selected, setSelected] = useState(new Set());
+  const [tab, setTab] = useState("all");
+  const [step, setStep] = useState("list"); // list | sending | done
+  const [progreso, setProgreso] = useState(0);
+  const [comunidades, setComunidades] = useState([]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [{ messages }, s] = await Promise.all([inboxApi.list(tab), inboxApi.stats()]);
-      setMsgs(messages || []); setStats(s || {});
+      const [{ messages }, c] = await Promise.all([inboxApi.list("ready"), comunidadesApi.list()]);
+      setMsgs(messages || []);
+      setComunidades(c.comunidades || []);
     } catch {} finally { setLoading(false); }
-  }, [tab]);
+  }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -117,194 +275,116 @@ function InboxPage() {
     return () => es.close();
   }, [loadData]);
 
-  const toggleSelect = (id) => {
-    setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  };
-  const selectAll = () => setSelected(new Set(msgs.filter(m=>m.status==="ready").map(m=>m.id)));
-  const clearSel = () => setSelected(new Set());
+  const bodegasPresentes = [...new Set(msgs.map(m => m.bodega_name || ""))].filter(Boolean);
+  const tabColor = BODEGAS_TABS.find(t => t.key === tab)?.color || "#25d366";
 
-  const handleSkip = async (id) => {
-    await inboxApi.skip(id);
-    setMsgs(prev => prev.filter(m => m.id !== id));
-    setSelected(prev => { const n = new Set(prev); n.delete(id); return n; });
+  const filtrados = tab === "all" ? msgs : msgs.filter(m => {
+    const n = (m.bodega_name || "").toLowerCase();
+    if (tab === "dmero") return n.includes("mero");
+    if (tab === "fym") return n.includes("fym");
+    if (tab === "maylo") return n.includes("maylo");
+    if (tab === "dinastia") return n.includes("dinast");
+    if (tab === "maquina") return n.includes("quina");
+    return true;
+  });
+
+  const toggle = (id) => setSelected(p => { const n = new Set(p); n.has(id)?n.delete(id):n.add(id); return n; });
+  const selTodos = () => setSelected(new Set(filtrados.map(m=>m.id)));
+  const limpiar = () => setSelected(new Set());
+
+  const difundir = () => {
+    setStep("sending"); setProgreso(0);
+    startDifusion({
+      inbox_ids: [...selected],
+      comunidad_ids: comunidades.map(c=>c.id),
+      onStart: () => {},
+      onSent: (d) => setProgreso(Math.round((d.sent+d.failed)/d.total*100)),
+      onFailed: (d) => setProgreso(Math.round((d.sent+d.failed)/d.total*100)),
+      onComplete: () => { setStep("done"); setSelected(new Set()); loadData(); },
+      onError: (e) => { alert("Error: "+e); setStep("list"); },
+    });
   };
 
-  const proceedDifundir = () => {
-    if (selected.size === 0) return;
-    sessionStorage.setItem("sd_selected", JSON.stringify([...selected]));
-    nav("/difundir");
-  };
+  if (step === "sending") return (
+    <div style={{ padding:24,textAlign:"center",paddingTop:70,background:"#0a0f1a",minHeight:"100vh" }}>
+      <div style={{ fontSize:60,marginBottom:16 }}>⏳</div>
+      <div style={{ fontSize:20,fontWeight:900,color:"#25d366",marginBottom:8 }}>Difundiendo...</div>
+      <div style={{ color:"#ffffff50",fontSize:13,marginBottom:28 }}>{selected.size} fotos → {comunidades.length} comunidades</div>
+      <div style={{ height:10,background:"#ffffff0f",borderRadius:10,overflow:"hidden",marginBottom:8 }}>
+        <div style={{ height:"100%",width:`${progreso}%`,background:"linear-gradient(90deg,#25d366,#128c7e)",borderRadius:10,transition:"width 0.15s" }} />
+      </div>
+      <div style={{ color:"#ffffff30",fontSize:12 }}>{progreso}%</div>
+    </div>
+  );
+
+  if (step === "done") return (
+    <div style={{ padding:24,textAlign:"center",paddingTop:70,background:"#0a0f1a",minHeight:"100vh" }}>
+      <div style={{ fontSize:70,marginBottom:16 }}>🎉</div>
+      <div style={{ fontSize:24,fontWeight:900,color:"#00d4aa",marginBottom:8 }}>¡Listo!</div>
+      <div style={{ color:"#ffffff60",fontSize:14,marginBottom:4 }}>Fotos difundidas a {comunidades.length} comunidades</div>
+      <div style={{ color:"#ffffff30",fontSize:13,marginBottom:32 }}>Lo que antes tardaba 50 min → ahora en minutos ⚡</div>
+      <button onClick={()=>setStep("list")} style={{ background:"linear-gradient(135deg,#25d366,#128c7e)",border:"none",borderRadius:12,color:"#fff",padding:"14px 32px",fontSize:15,fontWeight:800,cursor:"pointer" }}>
+        Ver bandeja →
+      </button>
+    </div>
+  );
 
   return (
     <div>
-      <div style={{ padding: "14px 16px 0" }}>
-        <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-          {[["ready","📥 Pendientes", stats.pendientes], ["sent","✅ Enviados", stats.enviados]].map(([v,l,c]) => (
-            <button key={v} onClick={() => setTab(v)} style={{ flex:1, background: tab===v?"#7c3aed":"#ffffff08", border:`1px solid ${tab===v?"#7c3aed":"#ffffff12"}`, borderRadius:10, color:"#fff", padding:"10px 0", fontSize:13, fontWeight:tab===v?700:400, cursor:"pointer" }}>
-              {l} {c > 0 && <span style={{ background:"#ffffff20", borderRadius:10, padding:"1px 7px", marginLeft:4, fontSize:11 }}>{c}</span>}
+      {/* Tabs por bodega */}
+      <div style={{ display:"flex",overflowX:"auto",borderBottom:"1px solid #ffffff08",background:"#0d1520" }}>
+        {BODEGAS_TABS.map(t => {
+          const count = t.key === "all" ? msgs.length : msgs.filter(m => {
+            const n = (m.bodega_name||"").toLowerCase();
+            if (t.key==="dmero") return n.includes("mero");
+            if (t.key==="fym") return n.includes("fym");
+            if (t.key==="maylo") return n.includes("maylo");
+            if (t.key==="dinastia") return n.includes("dinast");
+            if (t.key==="maquina") return n.includes("quina");
+            return false;
+          }).length;
+          if (t.key !== "all" && count === 0) return null;
+          return (
+            <button key={t.key} onClick={()=>{setTab(t.key);setSelected(new Set());}} style={{ background:tab===t.key?"#0a0f1a":"transparent",borderBottom:`2.5px solid ${tab===t.key?(t.color||"#25d366"):"transparent"}`,border:"none",borderTop:"none",borderLeft:"none",borderRight:"none",color:tab===t.key?"#fff":"#ffffff35",padding:"11px 12px",fontSize:12,fontWeight:tab===t.key?800:400,cursor:"pointer",whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:5 }}>
+              {t.emoji} {t.label}
+              {count > 0 && <span style={{ background:tab===t.key?(t.color||"#25d366"):"#ffffff15",color:"#fff",borderRadius:8,padding:"1px 6px",fontSize:10,fontWeight:800 }}>{count}</span>}
             </button>
-          ))}
-        </div>
-
-        {!isConnected && (
-          <div style={{ background:"#f59e0b0d", border:"1px solid #f59e0b25", borderRadius:10, padding:"10px 14px", marginBottom:12, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-            <span style={{ color:"#f59e0b", fontSize:13 }}>⚠️ WhatsApp desconectado</span>
-            <button onClick={() => nav("/conexion")} style={{ ...btn("#f59e0b18"), border:"1px solid #f59e0b40", color:"#f59e0b", padding:"4px 10px", fontSize:12 }}>Conectar</button>
-          </div>
-        )}
-
-        {tab === "ready" && msgs.length > 0 && (
-          <div style={{ display:"flex", gap:8, marginBottom:12, alignItems:"center" }}>
-            <button onClick={selectAll} style={{ ...btn("#ffffff12"), border:"1px solid #ffffff15", color:"#fff", fontSize:12, padding:"7px 12px" }}>Seleccionar todos ({msgs.length})</button>
-            {selected.size > 0 && <button onClick={clearSel} style={{ ...btn("#ffffff08"), border:"1px solid #ffffff12", color:"#ffffff50", fontSize:12, padding:"7px 12px" }}>Limpiar</button>}
-            {selected.size > 0 && (
-              <button onClick={proceedDifundir} style={{ ...btn("linear-gradient(135deg,#25d366,#128c7e)"), padding:"7px 14px", fontSize:13, marginLeft:"auto" }}>
-                📲 Difundir ({selected.size})
-              </button>
-            )}
-          </div>
-        )}
+          );
+        })}
       </div>
 
-      <div style={{ padding: "0 16px 100px" }}>
+      {/* Toolbar */}
+      <div style={{ padding:"10px 12px",display:"flex",gap:8,alignItems:"center",borderBottom:"1px solid #ffffff06" }}>
+        <button onClick={selTodos} style={{ background:"#ffffff08",border:"1px solid #ffffff12",borderRadius:7,color:"#fff",padding:"6px 12px",fontSize:12,cursor:"pointer" }}>
+          ☑️ Todos ({filtrados.length})
+        </button>
+        {selected.size>0 && <button onClick={limpiar} style={{ background:"#ffffff06",border:"1px solid #ffffff10",borderRadius:7,color:"#ffffff50",padding:"6px 10px",fontSize:12,cursor:"pointer" }}>Limpiar</button>}
+        {selected.size>0 && <div style={{ marginLeft:"auto",color:"#ffffff50",fontSize:12 }}>{selected.size} seleccionados</div>}
+      </div>
+
+      {/* Lista */}
+      <div style={{ padding:"8px 12px 110px" }}>
         {loading ? (
-          <div style={{ textAlign:"center", padding:40, color:"#ffffff40" }}>Cargando...</div>
-        ) : msgs.length === 0 ? (
-          <div style={{ textAlign:"center", padding:48 }}>
-            <div style={{ fontSize:48, marginBottom:12 }}>📭</div>
-            <div style={{ color:"#fff", fontWeight:700 }}>{tab==="ready" ? "Bandeja vacía" : "Sin envíos aún"}</div>
-            <div style={{ color:"#ffffff40", fontSize:13, marginTop:4 }}>
-              {tab==="ready" ? "Los mensajes de las bodegas aparecerán aquí automáticamente" : "Aquí verás los mensajes ya difundidos"}
-            </div>
+          <div style={{ textAlign:"center",padding:48,color:"#ffffff30" }}>Cargando...</div>
+        ) : filtrados.length === 0 ? (
+          <div style={{ textAlign:"center",padding:48 }}>
+            <div style={{ fontSize:48,marginBottom:12 }}>📭</div>
+            <div style={{ color:"#fff",fontWeight:700 }}>Bandeja vacía</div>
+            <div style={{ color:"#ffffff40",fontSize:13,marginTop:4 }}>Los mensajes de las bodegas aparecerán aquí</div>
           </div>
-        ) : (
-          msgs.map(msg => (
-            <MsgCard key={msg.id} msg={msg} selected={selected.has(msg.id)} onToggle={() => toggleSelect(msg.id)} onSkip={() => handleSkip(msg.id)} onUpdate={(updated) => setMsgs(prev => prev.map(m => m.id===msg.id ? updated : m))} editing={editingId === msg.id} onEdit={() => setEditingId(msg.id)} onCloseEdit={() => setEditingId(null)} showSelect={tab === "ready"} />
-          ))
-        )}
+        ) : filtrados.map(msg => (
+          <TarjetaProducto key={msg.id} msg={msg} selected={selected.has(msg.id)} onToggle={()=>toggle(msg.id)} onUpdate={(u)=>setMsgs(p=>p.map(m=>m.id===msg.id?u:m))} />
+        ))}
       </div>
 
-      {selected.size > 0 && (
-        <div style={{ position:"fixed", bottom:76, left:0, right:0, padding:"0 16px", zIndex:50 }}>
-          <button onClick={proceedDifundir} style={{ ...btn("linear-gradient(135deg,#25d366,#128c7e)"), width:"100%", padding:"15px 0", fontSize:16, boxShadow:"0 4px 24px #25d36650" }}>
-            📲 Difundir {selected.size} foto{selected.size!==1?"s":""} a mis comunidades
+      {/* FAB Difundir */}
+      {selected.size>0 && (
+        <div style={{ position:"fixed",bottom:72,left:"50%",transform:"translateX(-50%)",width:"calc(100% - 24px)",maxWidth:406,zIndex:50 }}>
+          <button onClick={difundir} style={{ width:"100%",background:`linear-gradient(135deg,${tabColor},${tabColor}bb)`,border:"none",borderRadius:14,color:"#fff",padding:"15px 0",fontSize:15,fontWeight:800,cursor:"pointer",boxShadow:`0 6px 28px ${tabColor}45` }}>
+            📲 Difundir {selected.size} foto{selected.size!==1?"s":""} a {comunidades.length} comunidades
           </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function MsgCard({ msg, selected, onToggle, onSkip, onUpdate, editing, onEdit, onCloseEdit, showSelect }) {
-  const [editData, setEditData] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
-
-  const openEdit = () => {
-    setEditData({ nombre: msg.nombre || "", genero: msg.genero || "Hombre Y Dama", tallas: msg.tallas || [], precio_bodega: msg.precio_bodega || 0, precio_caja: msg.precio_caja || 0, tiene_caja: msg.tiene_caja || false, es_promo: msg.es_promo || false, price_adjust: msg.price_adjust || 5000, caption_final: msg.caption_final || "" });
-    onEdit();
-  };
-
-  const saveEdit = async () => {
-    setSaving(true);
-    try { const updated = await inboxApi.update(msg.id, editData); onUpdate(updated); onCloseEdit(); } catch {} finally { setSaving(false); }
-  };
-
-  const buildCaption = (d) => {
-    const tallas = d.tallas || [];
-    const precio = (d.precio_bodega || 0) + (d.price_adjust || 5000);
-    const caja = d.tiene_caja ? (d.precio_caja || 0) + (d.price_adjust || 5000) : 0;
-    const nums = tallas.map(Number).sort((a,b)=>a-b);
-    let tallaStr = tallas.length === 0 ? "CONSULTAR" : tallas.length === 1 ? `SOLO ${tallas[0]} EUR` : nums.every((v,i)=>i===0||v===nums[i-1]+1) ? `${nums[0]} AL ${nums[nums.length-1]} EUR` : tallas.join("-")+" EUR";
-    let out = d.es_promo ? `🚨 *PROMO PROMO PROMO* 🚨\n*SEBAS SHOES* 👟\n⚠️ *NO CAMBIO - NO GARANTÍA*\n\n` : "";
-    out += `*${d.nombre || "PRODUCTO"}* 💣🔥\n\nNumeración ${d.genero} ${gIcon(d.genero)} *(${tallaStr})*\n\n*Precio:  $ ${Number(precio).toLocaleString("es-CO")}*`;
-    if (d.tiene_caja && caja > 0) out += `\n\n*DISPONIBLE POR CAJA* 📦 $ ${Number(caja).toLocaleString("es-CO")}`;
-    return out;
-  };
-
-  const status_dot = { ready:"#00d4aa", sent:"#7c3aed", skipped:"#ffffff25" }[msg.status] || "#ffffff25";
-
-  return (
-    <div style={{ ...card, marginBottom:12, overflow:"hidden", border: selected ? "2px solid #25d366" : "1px solid #ffffff10" }}>
-      <div style={{ position:"relative" }}>
-        {msg.media_path ? <img src={msg.media_path} alt="" style={{ width:"100%", height:200, objectFit:"cover", display:"block" }} /> : <div style={{ width:"100%", height:100, background:"#ffffff06", display:"flex", alignItems:"center", justifyContent:"center", fontSize:40 }}>👟</div>}
-        <div style={{ position:"absolute", inset:0, background:"linear-gradient(to bottom, transparent 50%, #00000099)" }} />
-        {showSelect && <div onClick={onToggle} style={{ position:"absolute", top:10, left:10, width:28, height:28, borderRadius:8, background: selected?"#25d366":"#00000066", border:`2px solid ${selected?"#25d366":"#ffffff50"}`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:14 }}>{selected ? "✓" : ""}</div>}
-        <div style={{ position:"absolute", top:10, right:10, background:"#00000088", borderRadius:20, padding:"3px 10px", fontSize:11 }}>
-          <span style={{ display:"inline-block", width:7, height:7, borderRadius:"50%", background:status_dot, marginRight:4 }}/>
-          <span style={{ color:"#fff" }}>{msg.bodega_name || "Bodega"}</span>
-        </div>
-        <div style={{ position:"absolute", bottom:10, left:12 }}>
-          <div style={{ color:"#fff", fontWeight:800, fontSize:15, textShadow:"0 1px 4px #000" }}>{msg.nombre || "Sin nombre"}</div>
-          <div style={{ color:"#ffffffcc", fontSize:12 }}>{gIcon(msg.genero)} {msg.genero} · {(msg.tallas||[]).join(", ") || "Sin tallas"}</div>
-        </div>
-      </div>
-
-      <div style={{ padding:"12px 14px" }}>
-        <div style={{ display:"flex", gap:8, alignItems:"center", marginBottom:10 }}>
-          <div style={{ flex:1 }}>
-            <div style={{ color:"#ffffff45", fontSize:10 }}>Precio bodega → tu precio</div>
-            <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-              <span style={{ color:"#ffffff40", fontSize:13, textDecoration:"line-through" }}>{fmt(msg.precio_bodega)}</span>
-              <span style={{ color:"#00d4aa", fontWeight:800, fontSize:16 }}>{fmt((msg.precio_bodega||0)+(msg.price_adjust||5000))}</span>
-            </div>
-          </div>
-          {msg.tiene_caja && <div style={{ background:"#00d4aa12", border:"1px solid #00d4aa30", borderRadius:8, padding:"4px 10px", fontSize:11, color:"#00d4aa" }}>📦 Caja: {fmt((msg.precio_caja||0)+(msg.price_adjust||5000))}</div>}
-          {msg.es_promo && <div style={{ background:"#ef444412", border:"1px solid #ef444430", borderRadius:8, padding:"4px 10px", fontSize:11, color:"#ef4444", fontWeight:700 }}>🚨 PROMO</div>}
-        </div>
-
-        <div onClick={() => setShowPreview(v=>!v)} style={{ background:"#ffffff05", borderRadius:9, padding:"8px 12px", marginBottom:10, cursor:"pointer" }}>
-          <div style={{ color:"#ffffff40", fontSize:10, marginBottom:4 }}>📱 Caption SebasShoes {showPreview?"▲":"▼"}</div>
-          {showPreview && <pre style={{ color:"#e9edef", fontSize:12, lineHeight:1.65, margin:0, whiteSpace:"pre-wrap", fontFamily:"inherit" }}>{msg.caption_final || buildCaption(msg)}</pre>}
-          {!showPreview && <div style={{ color:"#ffffff55", fontSize:12, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{(msg.caption_final || "").split("\n")[0]}</div>}
-        </div>
-
-        {showSelect && msg.status === "ready" && (
-          <div style={{ display:"flex", gap:8 }}>
-            <button onClick={openEdit} style={{ flex:1, ...btn("#ffffff0a"), border:"1px solid #ffffff15", color:"#fff", padding:"8px 0", fontSize:12 }}>✏️ Editar</button>
-            <button onClick={onToggle} style={{ flex:1, ...btn(selected?"#25d366":"#ffffff0a"), border:`1px solid ${selected?"#25d366":"#ffffff15"}`, color:"#fff", padding:"8px 0", fontSize:12 }}>{selected?"✓ Seleccionado":"Seleccionar"}</button>
-            <button onClick={() => onSkip(msg.id)} style={{ ...btn("#ef444412"), border:"1px solid #ef444430", color:"#ef4444", padding:"8px 12px", fontSize:12 }}>✕</button>
-          </div>
-        )}
-      </div>
-
-      {editing && editData && (
-        <div style={{ borderTop:"1px solid #ffffff10", padding:16, background:"#ffffff05" }}>
-          <div style={{ color:"#ffffff60", fontSize:12, marginBottom:12, fontWeight:600 }}>✏️ Editar antes de difundir</div>
-          <div style={{ marginBottom:10 }}>
-            <label style={{ color:"#ffffff45", fontSize:11, display:"block", marginBottom:4 }}>Nombre</label>
-            <input value={editData.nombre} onChange={e=>setEditData(p=>({...p,nombre:e.target.value.toUpperCase()}))} style={{ width:"100%", background:"#ffffff08", border:"1px solid #ffffff15", borderRadius:8, padding:"8px 11px", fontSize:14, fontWeight:700, outline:"none" }} />
-          </div>
-          <div style={{ marginBottom:10 }}>
-            <label style={{ color:"#ffffff45", fontSize:11, display:"block", marginBottom:4 }}>Género</label>
-            <div style={{ display:"flex", gap:6 }}>
-              {["Hombre","Dama","Hombre Y Dama"].map(g=>(<button key={g} onClick={()=>setEditData(p=>({...p,genero:g}))} style={{ flex:1, background:editData.genero===g?"#7c3aed":"#ffffff08", border:`1px solid ${editData.genero===g?"#7c3aed":"#ffffff15"}`, borderRadius:7, color:"#fff", padding:"6px 2px", fontSize:11, cursor:"pointer" }}>{gIcon(g)} {g.replace(" Y Dama","").replace("Hombre","H").replace("Dama","D")}</button>))}
-            </div>
-          </div>
-          <div style={{ marginBottom:10 }}>
-            <label style={{ color:"#ffffff45", fontSize:11, display:"block", marginBottom:4 }}>Tallas disponibles</label>
-            <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
-              {ALL_SIZES.map(t=>{ const active = editData.tallas.includes(t); return <button key={t} onClick={()=>setEditData(p=>({...p,tallas:active?p.tallas.filter(x=>x!==t):[...p.tallas,t].sort((a,b)=>Number(a)-Number(b))}))} style={{ width:38,height:34,background:active?"#00d4aa20":"#ffffff06",border:`2px solid ${active?"#00d4aa":"#ffffff10"}`,borderRadius:7,color:active?"#00d4aa":"#ffffff25",fontSize:12,fontWeight:active?800:400,cursor:"pointer" }}>{t}</button>; })}
-            </div>
-          </div>
-          <div style={{ marginBottom:10 }}>
-            <label style={{ color:"#ffffff45", fontSize:11, display:"block", marginBottom:4 }}>Sumarle al precio</label>
-            <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
-              {[0,3000,5000,8000,10000,15000].map(v=>(<button key={v} onClick={()=>setEditData(p=>({...p,price_adjust:v}))} style={{ background:editData.price_adjust===v?"#7c3aed":"#ffffff08", border:`1px solid ${editData.price_adjust===v?"#7c3aed":"#ffffff12"}`, borderRadius:7, color:"#fff", padding:"5px 9px", fontSize:11, cursor:"pointer", fontWeight:editData.price_adjust===v?700:400 }}>{v===0?"Sin ajuste":`+$${v/1000}k`}</button>))}
-            </div>
-            <div style={{ color:"#00d4aa", fontWeight:800, fontSize:15, marginTop:6 }}>Tu precio: {fmt((editData.precio_bodega||0)+editData.price_adjust)}</div>
-          </div>
-          <div style={{ display:"flex", gap:8, marginBottom:14 }}>
-            <button onClick={()=>setEditData(p=>({...p,tiene_caja:!p.tiene_caja}))} style={{ flex:1, background:editData.tiene_caja?"#00d4aa15":"#ffffff08", border:`1px solid ${editData.tiene_caja?"#00d4aa35":"#ffffff12"}`, borderRadius:8, color:editData.tiene_caja?"#00d4aa":"#ffffff50", padding:"8px 0", fontSize:12, cursor:"pointer" }}>📦 {editData.tiene_caja?"Tiene caja ✓":"Sin caja"}</button>
-            <button onClick={()=>setEditData(p=>({...p,es_promo:!p.es_promo}))} style={{ flex:1, background:editData.es_promo?"#ef444415":"#ffffff08", border:`1px solid ${editData.es_promo?"#ef444435":"#ffffff12"}`, borderRadius:8, color:editData.es_promo?"#ef4444":"#ffffff50", padding:"8px 0", fontSize:12, cursor:"pointer" }}>🚨 {editData.es_promo?"Promo ✓":"No es promo"}</button>
-          </div>
-          <div style={{ background:"#111b21", borderRadius:10, padding:12, marginBottom:14 }}>
-            <div style={{ color:"#ffffff40", fontSize:10, marginBottom:6 }}>Preview:</div>
-            <pre style={{ color:"#e9edef", fontSize:12, lineHeight:1.65, margin:0, whiteSpace:"pre-wrap", fontFamily:"inherit" }}>{buildCaption(editData)}</pre>
-          </div>
-          <div style={{ display:"flex", gap:8 }}>
-            <button onClick={onCloseEdit} style={{ flex:1, ...btn("#ffffff10"), border:"1px solid #ffffff15", color:"#fff" }}>Cancelar</button>
-            <button onClick={saveEdit} disabled={saving} style={{ flex:2, ...btn("linear-gradient(135deg,#7c3aed,#00d4aa)"), opacity:saving?0.5:1 }}>{saving?"Guardando...":"✅ Guardar"}</button>
+          <div style={{ textAlign:"center",marginTop:5,color:"#ffffff30",fontSize:11 }}>
+            → {comunidades.map(c=>c.name).join(" + ")}
           </div>
         </div>
       )}
@@ -312,320 +392,279 @@ function MsgCard({ msg, selected, onToggle, onSkip, onUpdate, editing, onEdit, o
   );
 }
 
-function DifundirPage() {
-  const nav = useNavigate();
-  const { isConnected } = React.useContext(WaCtx);
-  const [comunidades, setComunidades] = useState([]);
-  const [selCom, setSelCom] = useState(new Set());
-  const [step, setStep] = useState("select");
-  const [progress, setProgress] = useState({ sent:0, failed:0, total:0, current:"" });
-  const inboxIds = JSON.parse(sessionStorage.getItem("sd_selected") || "[]");
-
-  useEffect(() => {
-    comunidadesApi.list().then(({ comunidades }) => { setComunidades(comunidades || []); setSelCom(new Set((comunidades||[]).map(c=>c.id))); });
-  }, []);
-
-  const handleSend = () => {
-    if (!isConnected || selCom.size === 0) return;
-    setStep("sending");
-    startDifusion({ inbox_ids: inboxIds, comunidad_ids: [...selCom], onStart: (d) => setProgress(p=>({...p, total:d.total})), onSent: (d) => setProgress({ sent:d.sent, failed:d.failed, total:d.total, current:`✅ Enviado` }), onFailed: (d) => setProgress({ sent:d.sent, failed:d.failed, total:d.total, current:`❌ Fallo` }), onComplete: () => { sessionStorage.removeItem("sd_selected"); setStep("done"); }, onError: (e) => { alert("Error: "+e); setStep("select"); } });
-  };
-
-  const pct = progress.total > 0 ? Math.round((progress.sent+progress.failed)/progress.total*100) : 0;
-
-  return (
-    <div style={{ padding:16 }}>
-      <div style={{ marginBottom:18 }}>
-        <button onClick={()=>nav("/")} style={{ background:"none", border:"none", color:"#ffffff50", cursor:"pointer", fontSize:13, padding:0 }}>← Volver</button>
-        <h2 style={{ color:"#fff", fontSize:20, fontWeight:800, margin:"6px 0 4px" }}>📲 Difundir a comunidades</h2>
-        <p style={{ color:"#ffffff50", fontSize:13 }}>{inboxIds.length} foto{inboxIds.length!==1?"s":""} seleccionada{inboxIds.length!==1?"s":""}</p>
-      </div>
-
-      {step === "select" && (
-        <>
-          {!isConnected && <div style={{ background:"#ef444412", border:"1px solid #ef444430", borderRadius:11, padding:"11px 14px", marginBottom:16, color:"#ef4444", fontSize:13 }}>⚠️ WhatsApp no conectado. Ve a Conexión primero.</div>}
-          <div style={{ ...card, padding:16, marginBottom:16 }}>
-            <div style={{ color:"#ffffff55", fontSize:12, marginBottom:12, fontWeight:600 }}>Selecciona las comunidades destino:</div>
-            {comunidades.length === 0 ? <div style={{ color:"#ffffff40", fontSize:13, textAlign:"center", padding:16 }}>No tienes comunidades. Agrégalas en Configuración.</div> : comunidades.map(c => { const sel = selCom.has(c.id); return <div key={c.id} onClick={()=>setSelCom(prev=>{const n=new Set(prev);sel?n.delete(c.id):n.add(c.id);return n;})} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:sel?"#25d36612":"#ffffff06", border:`1px solid ${sel?"#25d36640":"#ffffff10"}`, borderRadius:10, padding:"12px 14px", marginBottom:8, cursor:"pointer" }}><div style={{ color:sel?"#fff":"#ffffff50", fontSize:14, fontWeight:sel?700:400 }}>{c.name}</div><div style={{ width:22, height:22, borderRadius:"50%", background:sel?"#25d366":"#ffffff12", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontSize:12 }}>{sel?"✓":""}</div></div>; })}
-          </div>
-          <button onClick={handleSend} disabled={!isConnected || selCom.size===0} style={{ ...btn("linear-gradient(135deg,#25d366,#128c7e)"), width:"100%", padding:"15px 0", fontSize:16, opacity:!isConnected||selCom.size===0?0.4:1 }}>
-            📲 Enviar a {selCom.size} comunidad{selCom.size!==1?"es":""}
-          </button>
-        </>
-      )}
-
-      {step === "sending" && (
-        <div style={{ textAlign:"center", padding:"40px 0" }}>
-          <div style={{ fontSize:48, marginBottom:16 }}>⏳</div>
-          <div style={{ color:"#25d366", fontWeight:800, fontSize:18, marginBottom:8 }}>Enviando...</div>
-          <div style={{ height:8, background:"#ffffff10", borderRadius:4, overflow:"hidden", marginBottom:10 }}>
-            <div style={{ height:"100%", width:`${pct}%`, background:"linear-gradient(90deg,#25d366,#128c7e)", transition:"width 0.3s", borderRadius:4 }} />
-          </div>
-          <div style={{ color:"#ffffff50", fontSize:13 }}>{progress.sent+progress.failed} de {progress.total} · {pct}%</div>
-        </div>
-      )}
-
-      {step === "done" && (
-        <div style={{ textAlign:"center", padding:"40px 0" }}>
-          <div style={{ fontSize:56, marginBottom:16 }}>🎉</div>
-          <div style={{ color:"#00d4aa", fontWeight:900, fontSize:22, marginBottom:8 }}>¡Listo!</div>
-          <div style={{ color:"#ffffff60", fontSize:14, marginBottom:28 }}>{progress.sent} mensajes enviados</div>
-          <button onClick={()=>nav("/")} style={{ ...btn("linear-gradient(135deg,#7c3aed,#00d4aa)"), width:"100%", padding:"14px 0", fontSize:15 }}>Volver al inbox</button>
-        </div>
-      )}
-    </div>
-  );
-}
-
+// ── CONFIG PAGE ───────────────────────────────────────────────────────────────
 function ConfigPage() {
   const { isConnected } = React.useContext(WaCtx);
+  const [seccion, setSeccion] = useState("bodegas");
   const [bodegas, setBodegas] = useState([]);
   const [comunidades, setComunidades] = useState([]);
   const [groups, setGroups] = useState([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
+  const [editando, setEditando] = useState(null);
   const [showBodegaForm, setShowBodegaForm] = useState(false);
   const [showComForm, setShowComForm] = useState(false);
   const [form, setForm] = useState({ name:"", wa_group_id:"", price_adjust:5000 });
   const [comForm, setComForm] = useState({ name:"", wa_group_id:"" });
 
   const load = async () => {
-    const [b, c] = await Promise.all([bodegasApi.list(), comunidadesApi.list()]);
-    setBodegas(b.bodegas || []);
-    setComunidades(c.comunidades || []);
+    const [b,c] = await Promise.all([bodegasApi.list(), comunidadesApi.list()]);
+    setBodegas(b.bodegas||[]); setComunidades(c.comunidades||[]);
   };
-  useEffect(() => { load(); }, []);
+  useEffect(()=>{ load(); },[]);
 
   const syncGroups = async () => {
     setLoadingGroups(true);
     try { const { groups } = await bodegasApi.syncGroups(); setGroups(groups); }
-    catch (e) { alert("Error: "+e.message); }
-    finally { setLoadingGroups(false); }
+    catch(e){ alert("Error: "+e.message); }
+    finally{ setLoadingGroups(false); }
   };
 
-  const addBodega = async () => {
-    await bodegasApi.create(form);
-    setShowBodegaForm(false);
-    setGroups([]);
-    setForm({name:"",wa_group_id:"",price_adjust:5000});
-    load();
-  };
+  const addBodega = async () => { await bodegasApi.create(form); setShowBodegaForm(false); setGroups([]); setForm({name:"",wa_group_id:"",price_adjust:5000}); load(); };
+  const addCom = async () => { await comunidadesApi.create(comForm); setShowComForm(false); setComForm({name:"",wa_group_id:""}); load(); };
 
-  const addCom = async () => {
-    await comunidadesApi.create(comForm);
-    setShowComForm(false);
-    setComForm({name:"",wa_group_id:""});
-    load();
+  const BODEGA_EMOJIS = { "mero":"🔴","fym":"✨","maylo":"📦","dinast":"👑","quina":"⚙️" };
+  const BODEGA_COLORS = { "mero":"#ef4444","fym":"#8b5cf6","maylo":"#ec4899","dinast":"#f59e0b","quina":"#06b6d4" };
+  const getBodegaStyle = (name) => {
+    const n = (name||"").toLowerCase();
+    for (const [k,v] of Object.entries(BODEGA_EMOJIS)) { if(n.includes(k)) return { emoji:v, color:BODEGA_COLORS[k] }; }
+    return { emoji:"📦", color:"#ffffff40" };
   };
 
   return (
-    <div style={{ padding:16, paddingBottom:80 }}>
-      <h2 style={{ color:"#fff", fontSize:20, fontWeight:800, marginBottom:20 }}>⚙️ Configuración</h2>
-
-      <div style={{ marginBottom:24 }}>
-        <div style={{ color:"#ffffff60", fontSize:12, fontWeight:700, marginBottom:10, letterSpacing:1 }}>📥 BODEGAS QUE VIGILAMOS</div>
-
-        {isConnected && !showBodegaForm && (
-          <button onClick={syncGroups} disabled={loadingGroups} style={{ ...btn("#25d36618"), border:"1px solid #25d36630", color:"#25d366", width:"100%", marginBottom:10, padding:"10px 0", fontSize:13 }}>
-            {loadingGroups ? "🔄 Cargando grupos..." : "🔄 Importar grupos de WhatsApp"}
-          </button>
-        )}
-
-        {groups.length > 0 && !showBodegaForm && (
-          <div style={{ ...card, padding:14, marginBottom:12 }}>
-            <div style={{ color:"#ffffff55", fontSize:12, marginBottom:8 }}>Toca un grupo para agregarlo como bodega:</div>
-            {groups.map(g => (
-              <div key={g.wa_group_id}
-                onClick={() => {
-                  setForm({name:g.name, wa_group_id:g.wa_group_id, price_adjust:5000});
-                  setShowBodegaForm(true);
-                }}
-                style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 0", borderBottom:"1px solid #ffffff08", cursor:"pointer" }}>
-                <div>
-                  <div style={{ color:"#fff", fontSize:13 }}>{g.name}</div>
-                  <div style={{ color:"#ffffff40", fontSize:11 }}>👥 {g.members}</div>
-                </div>
-                <span style={{ color:"#25d366", fontSize:13, fontWeight:700 }}>+ Agregar</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {bodegas.map(b => (
-          <div key={b.id} style={{ ...card, padding:"12px 14px", marginBottom:8, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-            <div>
-              <div style={{ color:"#fff", fontSize:14, fontWeight:600 }}>{b.name}</div>
-              <div style={{ color:"#ffffff40", fontSize:11 }}>Ajuste: +{fmt(b.price_adjust)}</div>
-            </div>
-            <button onClick={()=>bodegasApi.delete(b.id).then(load)} style={{ background:"#ef444412", border:"1px solid #ef444430", borderRadius:7, color:"#ef4444", padding:"5px 10px", cursor:"pointer", fontSize:12 }}>✕</button>
-          </div>
+    <div style={{ padding:"14px 16px 80px" }}>
+      <div style={{ fontSize:18,fontWeight:900,marginBottom:16 }}>⚙️ Configuración</div>
+      <div style={{ display:"flex",gap:4,marginBottom:20,background:"#ffffff06",borderRadius:12,padding:4 }}>
+        {[["bodegas","📥 Bodegas"],["comunidades","📤 Comunidades"],["reglas","🔧 Reglas IA"]].map(([k,l])=>(
+          <button key={k} onClick={()=>setSeccion(k)} style={{ flex:1,background:seccion===k?"#ffffff12":"transparent",border:"none",borderRadius:9,color:seccion===k?"#fff":"#ffffff40",padding:"9px 0",fontSize:12,fontWeight:seccion===k?700:400,cursor:"pointer" }}>{l}</button>
         ))}
+      </div>
 
-        {!showBodegaForm ? (
-          <button onClick={()=>setShowBodegaForm(true)} style={{ ...btn("#ffffff08"), border:"1px solid #ffffff15", color:"#fff", width:"100%", padding:"10px 0", fontSize:13 }}>+ Agregar bodega manual</button>
-        ) : (
-          <div style={{ ...card, padding:16 }}>
-            <div style={{ color:"#ffffff60", fontSize:13, fontWeight:700, marginBottom:12 }}>📥 Agregar bodega</div>
-            <div style={{ marginBottom:10 }}>
-              <label style={{ color:"#ffffff45", fontSize:11, display:"block", marginBottom:4 }}>Nombre bodega</label>
-              <input value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} style={{ width:"100%", background:"#ffffff08", border:"1px solid #ffffff15", borderRadius:8, padding:"8px 11px", fontSize:13, outline:"none", color:"#fff" }} />
+      {seccion==="bodegas" && (
+        <div>
+          {isConnected && !showBodegaForm && (
+            <button onClick={syncGroups} disabled={loadingGroups} style={{ background:"#25d36615",border:"1px solid #25d36630",borderRadius:10,color:"#25d366",width:"100%",marginBottom:10,padding:"10px 0",fontSize:13,cursor:"pointer",fontWeight:700 }}>
+              {loadingGroups?"🔄 Cargando grupos...":"🔄 Importar grupos de WhatsApp"}
+            </button>
+          )}
+          {groups.length>0 && !showBodegaForm && (
+            <div style={{ background:"#ffffff04",border:"1px solid #ffffff0f",borderRadius:12,padding:12,marginBottom:12 }}>
+              <div style={{ color:"#ffffff50",fontSize:12,marginBottom:8 }}>Toca para agregar como bodega:</div>
+              {groups.map(g=>(
+                <div key={g.wa_group_id} onClick={()=>{setForm({name:g.name,wa_group_id:g.wa_group_id,price_adjust:5000});setShowBodegaForm(true);}} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 4px",borderBottom:"1px solid #ffffff06",cursor:"pointer" }}>
+                  <div>
+                    <div style={{ color:"#fff",fontSize:13 }}>{g.name}</div>
+                    <div style={{ color:"#ffffff40",fontSize:11 }}>👥 {g.members}</div>
+                  </div>
+                  <span style={{ color:"#25d366",fontSize:12,fontWeight:700 }}>+ Agregar</span>
+                </div>
+              ))}
             </div>
-            <div style={{ marginBottom:12 }}>
-              <label style={{ color:"#ffffff45", fontSize:11, display:"block", marginBottom:4 }}>Sumarle al precio de venta</label>
-              <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
-                {[0,3000,5000,8000,10000,15000].map(v=>(
-                  <button key={v} onClick={()=>setForm(p=>({...p,price_adjust:v}))} style={{ background:form.price_adjust===v?"#7c3aed":"#ffffff08", border:`1px solid ${form.price_adjust===v?"#7c3aed":"#ffffff12"}`, borderRadius:7, color:"#fff", padding:"6px 10px", fontSize:12, cursor:"pointer", fontWeight:form.price_adjust===v?700:400 }}>
-                    {v===0?"Sin ajuste":`+$${v/1000}k`}
-                  </button>
+          )}
+          {bodegas.map(b=>{
+            const s = getBodegaStyle(b.name);
+            return (
+              <div key={b.id} style={{ background:"#ffffff04",border:`1px solid ${s.color}20`,borderRadius:14,marginBottom:10 }}>
+                <div style={{ padding:"12px 14px",display:"flex",justifyContent:"space-between",alignItems:"center" }}>
+                  <div style={{ display:"flex",alignItems:"center",gap:10 }}>
+                    <div style={{ width:40,height:40,borderRadius:12,background:`${s.color}15`,border:`1.5px solid ${s.color}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20 }}>{s.emoji}</div>
+                    <div>
+                      <div style={{ fontWeight:800,fontSize:14 }}>{b.name}</div>
+                      <div style={{ color:"#ffffff40",fontSize:11 }}>Se suma: +${Number(b.price_adjust).toLocaleString("es-CO")}</div>
+                    </div>
+                  </div>
+                  <div style={{ display:"flex",gap:6 }}>
+                    <button onClick={()=>setEditando(editando===b.id?null:b.id)} style={{ background:`${s.color}15`,border:`1px solid ${s.color}30`,borderRadius:8,color:s.color,padding:"6px 10px",fontSize:11,fontWeight:700,cursor:"pointer" }}>⚙️</button>
+                    <button onClick={()=>bodegasApi.delete(b.id).then(load)} style={{ background:"#ef444410",border:"1px solid #ef444425",borderRadius:7,color:"#ef4444",padding:"6px 10px",fontSize:11,cursor:"pointer" }}>✕</button>
+                  </div>
+                </div>
+                {editando===b.id && (
+                  <div style={{ padding:"0 14px 14px",borderTop:"1px solid #ffffff06" }}>
+                    <div style={{ marginTop:10,marginBottom:8,color:"#ffffff50",fontSize:12 }}>¿Cuánto se suma al precio?</div>
+                    <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
+                      {[0,3000,5000,8000,10000,15000].map(v=>(
+                        <button key={v} onClick={()=>bodegasApi.update(b.id,{price_adjust:v}).then(load)} style={{ background:b.price_adjust===v?s.color:"#ffffff08",border:`1px solid ${b.price_adjust===v?s.color:"#ffffff12"}`,borderRadius:8,color:"#fff",padding:"6px 10px",fontSize:12,cursor:"pointer",fontWeight:b.price_adjust===v?700:400 }}>
+                          {v===0?"Sin sumar":`+$${v.toLocaleString("es-CO")}`}
+                        </button>
+                      ))}
+                    </div>
+                    <button onClick={()=>setEditando(null)} style={{ marginTop:10,background:"#25d36620",border:"1px solid #25d36635",borderRadius:8,color:"#25d366",padding:"8px 18px",fontSize:12,fontWeight:700,cursor:"pointer" }}>✅ Cerrar</button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {!showBodegaForm ? (
+            <button onClick={()=>setShowBodegaForm(true)} style={{ background:"#ffffff04",border:"1px dashed #ffffff15",borderRadius:12,color:"#ffffff40",width:"100%",padding:"13px 0",fontSize:13,cursor:"pointer" }}>+ Agregar bodega manual</button>
+          ) : (
+            <div style={{ background:"#ffffff04",border:"1px solid #ffffff0f",borderRadius:14,padding:16 }}>
+              <div style={{ color:"#fff",fontWeight:700,marginBottom:12 }}>📥 Nueva bodega</div>
+              <div style={{ marginBottom:10 }}>
+                <label style={{ color:"#ffffff40",fontSize:11,display:"block",marginBottom:4 }}>Nombre</label>
+                <input value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} style={{ width:"100%",background:"#1e293b",border:"1px solid #ffffff15",borderRadius:8,padding:"8px 11px",fontSize:13,color:"#fff",outline:"none",boxSizing:"border-box" }} />
+              </div>
+              <div style={{ marginBottom:12 }}>
+                <label style={{ color:"#ffffff40",fontSize:11,display:"block",marginBottom:4 }}>Se suma</label>
+                <div style={{ display:"flex",gap:5 }}>
+                  {[0,3000,5000,8000,10000,15000].map(v=>(
+                    <button key={v} onClick={()=>setForm(p=>({...p,price_adjust:v}))} style={{ background:form.price_adjust===v?"#7c3aed":"#ffffff08",border:`1px solid ${form.price_adjust===v?"#7c3aed":"#ffffff12"}`,borderRadius:7,color:"#fff",padding:"5px 8px",fontSize:11,cursor:"pointer" }}>
+                      {v===0?"0":`+$${v/1000}k`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display:"flex",gap:8 }}>
+                <button onClick={()=>setShowBodegaForm(false)} style={{ flex:1,background:"#ffffff08",border:"1px solid #ffffff12",borderRadius:10,color:"#fff",padding:"10px 0",fontSize:13,cursor:"pointer" }}>Cancelar</button>
+                <button onClick={addBodega} style={{ flex:2,background:"linear-gradient(135deg,#25d366,#128c7e)",border:"none",borderRadius:10,color:"#fff",padding:"10px 0",fontSize:13,fontWeight:700,cursor:"pointer" }}>✅ Guardar</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {seccion==="comunidades" && (
+        <div>
+          {comunidades.map(c=>(
+            <div key={c.id} style={{ background:"#ffffff04",border:"1px solid #25d36620",borderRadius:12,padding:"12px 14px",marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center" }}>
+              <div style={{ display:"flex",alignItems:"center",gap:10 }}>
+                <div style={{ width:40,height:40,borderRadius:12,background:"#25d36615",border:"1.5px solid #25d36635",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20 }}>👥</div>
+                <div style={{ color:"#fff",fontSize:14,fontWeight:600 }}>{c.name}</div>
+              </div>
+              <button onClick={()=>comunidadesApi.delete(c.id).then(load)} style={{ background:"#ef444410",border:"1px solid #ef444425",borderRadius:7,color:"#ef4444",padding:"5px 10px",fontSize:11,cursor:"pointer" }}>✕</button>
+            </div>
+          ))}
+          {!showComForm ? (
+            <button onClick={()=>setShowComForm(true)} style={{ background:"#ffffff04",border:"1px dashed #ffffff15",borderRadius:12,color:"#ffffff40",width:"100%",padding:"13px 0",fontSize:13,cursor:"pointer" }}>+ Agregar comunidad</button>
+          ) : (
+            <div style={{ background:"#ffffff04",border:"1px solid #ffffff0f",borderRadius:14,padding:16 }}>
+              <div style={{ color:"#fff",fontWeight:700,marginBottom:12 }}>📤 Nueva comunidad destino</div>
+              {[{k:"name",l:"Nombre"},{k:"wa_group_id",l:"ID WhatsApp (lo obtienes importando grupos)"}].map(({k,l})=>(
+                <div key={k} style={{ marginBottom:10 }}>
+                  <label style={{ color:"#ffffff40",fontSize:11,display:"block",marginBottom:4 }}>{l}</label>
+                  <input value={comForm[k]} onChange={e=>setComForm(p=>({...p,[k]:e.target.value}))} style={{ width:"100%",background:"#1e293b",border:"1px solid #ffffff15",borderRadius:8,padding:"8px 11px",fontSize:13,color:"#fff",outline:"none",boxSizing:"border-box" }} />
+                </div>
+              ))}
+              <div style={{ display:"flex",gap:8 }}>
+                <button onClick={()=>setShowComForm(false)} style={{ flex:1,background:"#ffffff08",border:"1px solid #ffffff12",borderRadius:10,color:"#fff",padding:"10px 0",fontSize:13,cursor:"pointer" }}>Cancelar</button>
+                <button onClick={addCom} style={{ flex:2,background:"linear-gradient(135deg,#7c3aed,#00d4aa)",border:"none",borderRadius:10,color:"#fff",padding:"10px 0",fontSize:13,fontWeight:700,cursor:"pointer" }}>✅ Guardar</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {seccion==="reglas" && (
+        <div>
+          <div style={{ background:"#7c3aed12",border:"1px solid #7c3aed25",borderRadius:10,padding:"10px 14px",marginBottom:16 }}>
+            <div style={{ color:"#a78bfa",fontWeight:700,fontSize:13,marginBottom:4 }}>🔧 Reglas de la IA por bodega</div>
+            <div style={{ color:"#ffffff60",fontSize:12,lineHeight:1.7 }}>Si una bodega cambia su forma de mandar precios o textos, aquí lo ajustas. Sin código, sin llamar a nadie.</div>
+          </div>
+          {[
+            { nombre:"DINASTÍA", emoji:"👑", color:"#f59e0b", tipo:"CUADRE / PUBLICÓ", seSuma:"+$5.000", tallas:"Las de la bodega", nombre_auto:"Automático" },
+            { nombre:"D'MERO SPORT", emoji:"🔴", color:"#ef4444", tipo:"PRECIO + CODIGO + CAJA", seSuma:"+$5.000", tallas:"Las de la bodega", nombre_auto:"Automático" },
+            { nombre:"BODEGA MAYLO", emoji:"📦", color:"#ec4899", tipo:"COD + precio + CAJA", seSuma:"+$5.000", tallas:"Las de la bodega", nombre_auto:"Automático" },
+            { nombre:"FYM", emoji:"✨", color:"#8b5cf6", tipo:"PRECIO + Ref + ¿PROMO?", seSuma:"+$5.000", tallas:"Las de la bodega", nombre_auto:"Automático" },
+            { nombre:"MÁQUINA", emoji:"⚙️", color:"#06b6d4", tipo:"Solo Cod + precio", seSuma:"+$15.000", tallas:"Auto por género", nombre_auto:"⚠️ Tú lo escribes" },
+          ].map(b=>(
+            <div key={b.nombre} style={{ background:"#ffffff04",border:`1px solid ${b.color}20`,borderRadius:14,padding:14,marginBottom:10 }}>
+              <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:10 }}>
+                <span style={{ fontSize:20 }}>{b.emoji}</span>
+                <span style={{ fontWeight:800,fontSize:14,color:b.color }}>{b.nombre}</span>
+              </div>
+              <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:6 }}>
+                {[["Tipo de precio",b.tipo],["Se suma",b.seSuma],["Tallas",b.tallas],["Nombre",b.nombre_auto]].map(([k,v])=>(
+                  <div key={k} style={{ background:"#ffffff05",borderRadius:8,padding:"7px 10px" }}>
+                    <div style={{ color:"#ffffff30",fontSize:9,marginBottom:2 }}>{k}</div>
+                    <div style={{ color:"#fff",fontSize:11,fontWeight:600 }}>{v}</div>
+                  </div>
                 ))}
               </div>
             </div>
-            <div style={{ display:"flex", gap:8 }}>
-              <button onClick={()=>{setShowBodegaForm(false);}} style={{ flex:1, ...btn("#ffffff10"), border:"1px solid #ffffff15", color:"#fff" }}>Cancelar</button>
-              <button onClick={addBodega} style={{ flex:2, ...btn("linear-gradient(135deg,#25d366,#128c7e)") }}>✅ Guardar bodega</button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div style={{ marginBottom:24 }}>
-        <div style={{ color:"#ffffff60", fontSize:12, fontWeight:700, marginBottom:10, letterSpacing:1 }}>📤 MIS COMUNIDADES DESTINO</div>
-        {comunidades.map(c => (
-          <div key={c.id} style={{ ...card, padding:"12px 14px", marginBottom:8, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-            <div style={{ color:"#fff", fontSize:14 }}>{c.name}</div>
-            <button onClick={()=>comunidadesApi.delete(c.id).then(load)} style={{ background:"#ef444412", border:"1px solid #ef444430", borderRadius:7, color:"#ef4444", padding:"5px 10px", cursor:"pointer", fontSize:12 }}>✕</button>
-          </div>
-        ))}
-        {!showComForm ? (
-          <button onClick={()=>setShowComForm(true)} style={{ ...btn("#ffffff08"), border:"1px solid #ffffff15", color:"#fff", width:"100%", padding:"10px 0", fontSize:13 }}>+ Agregar comunidad</button>
-        ) : (
-          <div style={{ ...card, padding:16 }}>
-            <div style={{ color:"#ffffff60", fontSize:13, fontWeight:700, marginBottom:12 }}>📤 Agregar comunidad destino</div>
-            {[{k:"name",l:"Nombre de tu comunidad"},{k:"wa_group_id",l:"ID WhatsApp (lo obtenemos importando)"}].map(({k,l})=>(
-              <div key={k} style={{ marginBottom:10 }}>
-                <label style={{ color:"#ffffff45", fontSize:11, display:"block", marginBottom:4 }}>{l}</label>
-                <input value={comForm[k]} onChange={e=>setComForm(p=>({...p,[k]:e.target.value}))} style={{ width:"100%", background:"#ffffff08", border:"1px solid #ffffff15", borderRadius:8, padding:"8px 11px", fontSize:13, outline:"none", color:"#fff" }} />
-              </div>
-            ))}
-            <div style={{ display:"flex", gap:8 }}>
-              <button onClick={()=>setShowComForm(false)} style={{ flex:1, ...btn("#ffffff10"), border:"1px solid #ffffff15", color:"#fff" }}>Cancelar</button>
-              <button onClick={addCom} style={{ flex:2, ...btn("linear-gradient(135deg,#7c3aed,#00d4aa)") }}>✅ Guardar comunidad</button>
-            </div>
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
+// ── CONEXION PAGE ─────────────────────────────────────────────────────────────
 function ConexionPage() {
-  const { isConnected } = React.useContext(WaCtx);
-  const [qrLocal, setQrLocal] = useState(null);
-  const [statusLocal, setStatusLocal] = useState("disconnected");
+  const { waStatus, qr, isConnected } = React.useContext(WaCtx);
   const [connecting, setConnecting] = useState(false);
-
-  useEffect(() => {
-    const poll = async () => {
-      try {
-        const s = await whatsappApi.status();
-        setStatusLocal(s.status);
-        if (s.hasQR) {
-          const data = await whatsappApi.qr();
-          if (data.qr) setQrLocal(data.qr);
-        }
-        if (s.isConnected) setQrLocal(null);
-      } catch {}
-    };
-    poll();
-    const interval = setInterval(poll, 3000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const statusColor = { connected:"#00d4aa", qr_ready:"#f59e0b", connecting:"#f59e0b", disconnected:"#ef4444" }[statusLocal]||"#ef4444";
-  const statusLabel = { connected:"Conectado ✅", qr_ready:"📱 Escanea el QR", connecting:"🔄 Conectando...", disconnected:"Desconectado" }[statusLocal]||statusLocal;
+  const statusColor = { connected:"#00d4aa",qr_ready:"#f59e0b",connecting:"#f59e0b",disconnected:"#ef4444" }[waStatus]||"#ef4444";
+  const statusLabel = { connected:"Conectado ✅",qr_ready:"📱 Escanea el QR",connecting:"🔄 Conectando...",disconnected:"Desconectado" }[waStatus]||waStatus;
 
   return (
-    <div style={{ padding:16 }}>
-      <h2 style={{ color:"#fff", fontSize:20, fontWeight:800, marginBottom:20 }}>🔗 Conexión WhatsApp</h2>
-      <div style={{ ...card, padding:24, textAlign:"center", marginBottom:16 }}>
-        <div style={{ display:"inline-flex", alignItems:"center", gap:8, background:`${statusColor}12`, border:`1px solid ${statusColor}30`, borderRadius:20, padding:"8px 18px", marginBottom:20 }}>
-          <div style={{ width:9, height:9, borderRadius:"50%", background:statusColor, boxShadow:`0 0 10px ${statusColor}` }} />
-          <span style={{ color:statusColor, fontWeight:700 }}>{statusLabel}</span>
+    <div style={{ padding:"20px 16px" }}>
+      <div style={{ fontSize:18,fontWeight:900,marginBottom:20 }}>🔗 Conexión WhatsApp</div>
+      <div style={{ background:"#ffffff04",border:"1px solid #ffffff0a",borderRadius:16,padding:24,textAlign:"center",marginBottom:16 }}>
+        <div style={{ display:"inline-flex",alignItems:"center",gap:8,background:`${statusColor}12`,border:`1px solid ${statusColor}30`,borderRadius:20,padding:"8px 18px",marginBottom:20 }}>
+          <div style={{ width:9,height:9,borderRadius:"50%",background:statusColor,boxShadow:`0 0 10px ${statusColor}` }} />
+          <span style={{ color:statusColor,fontWeight:700 }}>{statusLabel}</span>
         </div>
-
-        {qrLocal && (
+        {qr && (
           <div style={{ marginBottom:16 }}>
-            <div style={{ background:"#fff", borderRadius:14, padding:12, display:"inline-block", marginBottom:10 }}>
-              <img src={qrLocal} alt="QR" style={{ width:220, height:220, display:"block" }} />
+            <div style={{ background:"#fff",borderRadius:14,padding:12,display:"inline-block",marginBottom:10 }}>
+              <img src={qr} alt="QR" style={{ width:200,height:200,display:"block" }} />
             </div>
-            <div style={{ color:"#f59e0b", fontSize:13 }}>⏱ Escanea con WhatsApp ahora</div>
+            <div style={{ color:"#f59e0b",fontSize:13 }}>⏱ Escanea con WhatsApp ahora</div>
           </div>
         )}
-
-        {statusLocal === "disconnected" && !qrLocal && (
+        {!isConnected && !qr && (
           <>
-            <div style={{ fontSize:48, marginBottom:12 }}>📱</div>
-            <p style={{ color:"#ffffff55", fontSize:13, lineHeight:1.7, marginBottom:20 }}>
-              Conecta tu WhatsApp para que el sistema<br/>empiece a escuchar las bodegas automáticamente
-            </p>
-            <button onClick={async()=>{
-              setConnecting(true);
-              setStatusLocal("connecting");
-              try { await whatsappApi.connect(); } catch(e) { alert(e.message); }
-              finally { setConnecting(false); }
-            }} style={{ ...btn("linear-gradient(135deg,#25d366,#128c7e)"), padding:"13px 32px", fontSize:15 }}>
+            <div style={{ fontSize:48,marginBottom:12 }}>📱</div>
+            <p style={{ color:"#ffffff55",fontSize:13,lineHeight:1.7,marginBottom:20 }}>Conecta tu WhatsApp para que el sistema<br/>empiece a escuchar las bodegas automáticamente</p>
+            <button onClick={async()=>{setConnecting(true);try{await whatsappApi.connect();}catch(e){alert(e.message);}finally{setConnecting(false);}}} style={{ background:"linear-gradient(135deg,#25d366,#128c7e)",border:"none",borderRadius:12,color:"#fff",padding:"13px 32px",fontSize:15,fontWeight:800,cursor:"pointer" }}>
               Conectar WhatsApp
             </button>
           </>
         )}
-
-        {statusLocal === "connecting" && !qrLocal && (
-          <div style={{ color:"#f59e0b", fontSize:14, marginTop:12 }}>
-            🔄 Iniciando Chrome... el QR aparece en 20-40 segundos
-          </div>
-        )}
-
-        {statusLocal === "connected" && (
-          <button onClick={()=>whatsappApi.disconnect()} style={{ ...btn("#ef444418"), border:"1px solid #ef444435", color:"#ef4444", padding:"10px 24px", fontSize:13 }}>
-            Desconectar
-          </button>
-        )}
+        {connecting && !qr && <div style={{ color:"#f59e0b",fontSize:14,marginTop:12 }}>🔄 Iniciando... espera 30 segundos</div>}
+        {isConnected && <button onClick={()=>whatsappApi.disconnect()} style={{ background:"#ef444418",border:"1px solid #ef444435",borderRadius:10,color:"#ef4444",padding:"10px 24px",fontSize:13,cursor:"pointer" }}>Desconectar</button>}
       </div>
     </div>
   );
 }
 
+// ── LAYOUT ────────────────────────────────────────────────────────────────────
 function Layout({ children }) {
   const { user, logout } = React.useContext(AuthCtx);
   const { waStatus } = React.useContext(WaCtx);
-  const [stats, setStats] = useState({});
   const nav = useNavigate();
-  const waColor = { connected:"#00d4aa", qr_ready:"#f59e0b" }[waStatus] || "#ef4444";
+  const [pendientes, setPendientes] = useState(0);
+  const waColor = { connected:"#00d4aa",qr_ready:"#f59e0b" }[waStatus]||"#ef4444";
 
-  useEffect(() => { inboxApi.stats().then(setStats).catch(()=>{}); }, []);
-
-  const navItems = [
-    { to:"/", label:"Inbox", icon:"📥", badge: stats.pendientes },
-    { to:"/config", label:"Config", icon:"⚙️" },
-    { to:"/conexion", label:"WA", icon:"🔗", dot: waColor },
-  ];
+  useEffect(()=>{ inboxApi.stats().then(s=>setPendientes(s.pendientes||0)).catch(()=>{}); },[]);
 
   return (
-    <div style={{ minHeight:"100vh", paddingBottom:70 }}>
-      <div style={{ background:"#0a0f1a", borderBottom:"1px solid #ffffff0f", padding:"12px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:100 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <span style={{ fontSize:20 }}>👟</span>
-          <div><div style={{ fontWeight:900, fontSize:14 }}>SebasDifusor</div><div style={{ color:"#ffffff35", fontSize:10 }}>{user?.name}</div></div>
+    <div style={{ minHeight:"100vh",background:"#0a0f1a",paddingBottom:70 }}>
+      <div style={{ background:"#0d1520",borderBottom:"1px solid #ffffff08",padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:100 }}>
+        <div style={{ display:"flex",alignItems:"center",gap:10 }}>
+          <div style={{ width:34,height:34,borderRadius:10,background:"linear-gradient(135deg,#25d366,#128c7e)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18 }}>👟</div>
+          <div>
+            <div style={{ fontWeight:900,fontSize:14,color:"#fff" }}>SebasDifusor</div>
+            <div style={{ color:"#ffffff30",fontSize:10 }}>{user?.name}</div>
+          </div>
         </div>
-        <button onClick={()=>{logout();nav("/login");}} style={{ background:"#ffffff08", border:"1px solid #ffffff10", borderRadius:8, color:"#ffffff50", padding:"5px 11px", fontSize:12, cursor:"pointer" }}>Salir</button>
+        <div style={{ display:"flex",alignItems:"center",gap:10 }}>
+          <div style={{ display:"flex",alignItems:"center",gap:5 }}>
+            <div style={{ width:7,height:7,borderRadius:"50%",background:waColor,boxShadow:`0 0 8px ${waColor}` }} />
+            <span style={{ color:waColor,fontSize:11,fontWeight:700 }}>{waStatus==="connected"?"WhatsApp activo":"WA desconectado"}</span>
+          </div>
+          <button onClick={()=>{logout();nav("/login");}} style={{ background:"#ffffff08",border:"1px solid #ffffff10",borderRadius:8,color:"#ffffff50",padding:"5px 11px",fontSize:12,cursor:"pointer" }}>Salir</button>
+        </div>
       </div>
-      <div>{children}</div>
-      <nav style={{ position:"fixed", bottom:0, left:0, right:0, background:"#0a0f1a", borderTop:"1px solid #ffffff0f", display:"flex", zIndex:100 }}>
-        {navItems.map(({ to, label, icon, badge, dot }) => (
-          <NavLink key={to} to={to} end={to==="/"} style={({ isActive }) => ({ flex:1, display:"flex", flexDirection:"column", alignItems:"center", padding:"10px 0", textDecoration:"none", color: isActive ? "#fff" : "#ffffff40", background: isActive ? "#ffffff08" : "transparent", fontSize:10, fontWeight: isActive ? 700 : 400, position:"relative" })}>
-            <div style={{ position:"relative", fontSize:22, marginBottom:3 }}>
+      <div style={{ color:"#fff" }}>{children}</div>
+      <nav style={{ position:"fixed",bottom:0,left:0,right:0,background:"#0d1520",borderTop:"1px solid #ffffff08",display:"flex",zIndex:100 }}>
+        {[
+          { to:"/",label:"Bandeja",icon:"📥",badge:pendientes },
+          { to:"/config",label:"Config",icon:"⚙️" },
+          { to:"/conexion",label:"WA",icon:"🔗",dot:waColor },
+        ].map(({ to,label,icon,badge,dot })=>(
+          <NavLink key={to} to={to} end={to==="/"} style={({isActive})=>({ flex:1,display:"flex",flexDirection:"column",alignItems:"center",padding:"10px 0",textDecoration:"none",color:isActive?"#fff":"#ffffff30",background:isActive?"#ffffff06":"transparent",fontSize:10,fontWeight:isActive?700:400,position:"relative" })}>
+            <div style={{ position:"relative",fontSize:22,marginBottom:3 }}>
               {icon}
-              {badge > 0 && <span style={{ position:"absolute", top:-4, right:-6, background:"#ef4444", borderRadius:10, padding:"1px 5px", fontSize:9, color:"#fff", fontWeight:800 }}>{badge}</span>}
-              {dot && <span style={{ position:"absolute", top:-2, right:-2, width:8, height:8, borderRadius:"50%", background:dot, border:"1.5px solid #0a0f1a" }}/>}
+              {badge>0 && <span style={{ position:"absolute",top:-4,right:-6,background:"#ef4444",borderRadius:10,padding:"1px 5px",fontSize:9,color:"#fff",fontWeight:800 }}>{badge}</span>}
+              {dot && <span style={{ position:"absolute",top:-2,right:-2,width:8,height:8,borderRadius:"50%",background:dot,border:"1.5px solid #0d1520" }}/>}
             </div>
             {label}
           </NavLink>
@@ -635,9 +674,10 @@ function Layout({ children }) {
   );
 }
 
+// ── APP ───────────────────────────────────────────────────────────────────────
 function PrivateRoute({ children }) {
   const { user, loading } = React.useContext(AuthCtx);
-  if (loading) return <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", color:"#ffffff30" }}>Cargando...</div>;
+  if (loading) return <div style={{ display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:"#0a0f1a",color:"#ffffff30" }}>Cargando...</div>;
   return user ? children : <Navigate to="/login" replace />;
 }
 
@@ -645,9 +685,8 @@ function App() {
   const { user } = React.useContext(AuthCtx);
   return (
     <Routes>
-      <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage />} />
+      <Route path="/login" element={user?<Navigate to="/" replace />:<LoginPage />} />
       <Route path="/" element={<PrivateRoute><Layout><InboxPage /></Layout></PrivateRoute>} />
-      <Route path="/difundir" element={<PrivateRoute><Layout><DifundirPage /></Layout></PrivateRoute>} />
       <Route path="/config" element={<PrivateRoute><Layout><ConfigPage /></Layout></PrivateRoute>} />
       <Route path="/conexion" element={<PrivateRoute><Layout><ConexionPage /></Layout></PrivateRoute>} />
     </Routes>
