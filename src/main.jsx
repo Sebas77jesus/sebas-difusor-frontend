@@ -47,17 +47,28 @@ function WaProvider({ children }) {
   const { user } = React.useContext(AuthCtx);
   useEffect(() => {
     if (!user) return;
-    const poll = async () => {
-      try {
-        const s = await whatsappApi.status();
-        setWaStatus(s.status);
-        if (s.hasQR) { try { const d = await whatsappApi.qr(); if (d.qr) setQr(d.qr); } catch {} }
-        if (s.isConnected) setQr(null);
-      } catch {}
+    const token = localStorage.getItem("sd_token");
+    // Primero cargamos el estado actual
+    whatsappApi.status().then(s => {
+      setWaStatus(s.status);
+      if (s.isConnected) setQr(null);
+    }).catch(() => {});
+    // Luego nos suscribimos a eventos en tiempo real
+    const es = new EventSource(`${BASE_URL}/whatsapp/events?token=${token}`);
+    es.addEventListener("status", (e) => {
+      const data = JSON.parse(e.data);
+      setWaStatus(data.status);
+      if (data.isConnected) setQr(null);
+    });
+    es.addEventListener("qr", (e) => {
+      const data = JSON.parse(e.data);
+      if (data.qr) setQr(data.qr);
+    });
+    es.onerror = () => {
+      // Si se cae el SSE, hacemos un poll de respaldo cada 5s
+      setTimeout(() => whatsappApi.status().then(s => setWaStatus(s.status)).catch(() => {}), 5000);
     };
-    poll();
-    const iv = setInterval(poll, 4000);
-    return () => clearInterval(iv);
+    return () => es.close();
   }, [user]);
   return <WaCtx.Provider value={{ waStatus, qr, isConnected: waStatus === "connected" }}>{children}</WaCtx.Provider>;
 }
