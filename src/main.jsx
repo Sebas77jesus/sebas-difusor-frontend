@@ -659,77 +659,60 @@ function ConfigPage() {
         </div>
       )}
  
-      {seccion==="comunidades" && (
-        <div>
-          {comunidades.map(c=>(
-            <div key={c.id} style={{ background:"#ffffff04",border:"1px solid #25d36620",borderRadius:12,padding:"12px 14px",marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center" }}>
-              <div style={{ display:"flex",alignItems:"center",gap:10 }}>
-                <div style={{ width:40,height:40,borderRadius:12,background:"#25d36615",border:"1.5px solid #25d36635",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20 }}>👥</div>
-                <div style={{ color:"#fff",fontSize:14,fontWeight:600 }}>{c.name}</div>
-              </div>
-              <button onClick={()=>comunidadesApi.delete(c.id).then(load)} style={{ background:"#ef444410",border:"1px solid #ef444425",borderRadius:7,color:"#ef4444",padding:"5px 10px",fontSize:11,cursor:"pointer" }}>✕</button>
+{seccion==="comunidades" && (
+  <div>
+    {isConnected && (
+      <button onClick={syncGroups} disabled={loadingGroups}
+        style={{ background:"#25d36615",border:"1px solid #25d36630",borderRadius:10,color:"#25d366",width:"100%",marginBottom:10,padding:"10px 0",fontSize:13,cursor:"pointer",fontWeight:700 }}>
+        {loadingGroups?"🔄 Cargando grupos...":"🔄 Importar grupos de WhatsApp"}
+      </button>
+    )}
+    {groups.length>0 && (
+      <div style={{ background:"#ffffff04",border:"1px solid #ffffff0f",borderRadius:12,padding:12,marginBottom:12 }}>
+        <div style={{ color:"#ffffff50",fontSize:12,marginBottom:8 }}>Toca para agregar como comunidad destino:</div>
+        {groups.map(g=>(
+          <div key={g.wa_group_id} onClick={()=>{setComForm({name:g.name,wa_group_id:g.wa_group_id});setShowComForm(true);setGroups([]);}}
+            style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 4px",borderBottom:"1px solid #ffffff06",cursor:"pointer" }}>
+            <div>
+              <div style={{ color:"#fff",fontSize:13 }}>{g.name}</div>
+              <div style={{ color:"#ffffff40",fontSize:11 }}>👥 {g.members}</div>
             </div>
-          ))}
-          {!showComForm ? (
-            <button onClick={()=>setShowComForm(true)} style={{ background:"#ffffff04",border:"1px dashed #ffffff15",borderRadius:12,color:"#ffffff40",width:"100%",padding:"13px 0",fontSize:13,cursor:"pointer" }}>+ Agregar comunidad</button>
-          ) : (
-            <div style={{ background:"#ffffff04",border:"1px solid #ffffff0f",borderRadius:14,padding:16 }}>
-              <div style={{ color:"#fff",fontWeight:700,marginBottom:12 }}>📤 Nueva comunidad destino</div>
-              {[{k:"name",l:"Nombre"},{k:"wa_group_id",l:"ID WhatsApp"}].map(({k,l})=>(
-                <div key={k} style={{ marginBottom:10 }}>
-                  <label style={{ color:"#ffffff40",fontSize:11,display:"block",marginBottom:4 }}>{l}</label>
-                  <input value={comForm[k]} onChange={e=>setComForm(p=>({...p,[k]:e.target.value}))} style={{ width:"100%",background:"#1e293b",border:"1px solid #ffffff15",borderRadius:8,padding:"8px 11px",fontSize:13,color:"#fff",outline:"none",boxSizing:"border-box" }} />
-                </div>
-              ))}
-              <div style={{ display:"flex",gap:8 }}>
-                <button onClick={()=>setShowComForm(false)} style={{ flex:1,background:"#ffffff08",border:"1px solid #ffffff12",borderRadius:10,color:"#fff",padding:"10px 0",fontSize:13,cursor:"pointer" }}>Cancelar</button>
-                <button onClick={addCom} style={{ flex:2,background:"linear-gradient(135deg,#7c3aed,#00d4aa)",border:"none",borderRadius:10,color:"#fff",padding:"10px 0",fontSize:13,fontWeight:700,cursor:"pointer" }}>✅ Guardar</button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
- 
-      {seccion==="reglas" && (
-        <div>
-          <div style={{ background:"#7c3aed12",border:"1px solid #7c3aed25",borderRadius:10,padding:"10px 14px",marginBottom:16 }}>
-            <div style={{ color:"#a78bfa",fontWeight:700,fontSize:13,marginBottom:4 }}>🔧 Reglas de la IA por bodega</div>
-            <div style={{ color:"#ffffff60",fontSize:12,lineHeight:1.7 }}>Aquí defines cómo la IA procesa cada bodega. Si una bodega cambia su formato o agregas una nueva, lo ajustas acá. Sin código.</div>
+            <span style={{ color:"#25d366",fontSize:12,fontWeight:700 }}>+ Agregar</span>
           </div>
- 
-          {/* Bodegas existentes */}
-          {todasLasReglas.map(b=>(
-            <div key={b.id} style={{ background:"#ffffff04",border:`1px solid ${b.color}20`,borderRadius:14,padding:14,marginBottom:10 }}>
-              <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10 }}>
-                <div style={{ display:"flex",alignItems:"center",gap:8 }}>
-                  <span style={{ fontSize:20 }}>{b.emoji}</span>
-                  <span style={{ fontWeight:800,fontSize:14,color:b.color }}>{b.nombre}</span>
-                  {b.id && !REGLAS_DEFAULT.find(r=>r.id===b.id) && (
-                    <span style={{ background:"#25d36620",border:"1px solid #25d36635",borderRadius:5,padding:"1px 7px",fontSize:10,color:"#25d366",fontWeight:700 }}>NUEVA</span>
-                  )}
-                </div>
-                {!REGLAS_DEFAULT.find(r=>r.id===b.id) && (
-                  <button onClick={()=>setReglasCustom(p=>p.filter(r=>r.id!==b.id))} style={{ background:"#ef444410",border:"1px solid #ef444425",borderRadius:7,color:"#ef4444",padding:"4px 8px",fontSize:11,cursor:"pointer" }}>✕ Quitar</button>
-                )}
-              </div>
-              <div style={{ color:"#ffffff50",fontSize:11,marginBottom:8,fontStyle:"italic" }}>{b.nota}</div>
-              <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:6 }}>
-                {[
-                  ["Tipo de precio", TIPOS_PRECIO.find(t=>t.key===b.tipo)?.label || b.tipo],
-                  ["Se suma", `+$${Number(b.seSuma).toLocaleString("es-CO")}`],
-                  ["Tallas", b.mandaTallas?"Las de la bodega":"Auto por género"],
-                  ["Nombre", b.mandaNombre?"Automático":"⚠️ Tú lo escribes"],
-                  ["Incluye COD", b.mandaCod?"Sí":"No"],
-                  ["Incluye CAJA", b.mandaCaja?"Sí":"No"],
-                ].map(([k,v])=>(
-                  <div key={k} style={{ background:"#ffffff05",borderRadius:8,padding:"7px 10px" }}>
-                    <div style={{ color:"#ffffff30",fontSize:9,marginBottom:2 }}>{k}</div>
-                    <div style={{ color:"#fff",fontSize:11,fontWeight:600 }}>{v}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+        ))}
+      </div>
+    )}
+    {comunidades.map(c=>(
+      <div key={c.id} style={{ background:"#ffffff04",border:"1px solid #25d36620",borderRadius:12,padding:"12px 14px",marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center" }}>
+        <div style={{ display:"flex",alignItems:"center",gap:10 }}>
+          <div style={{ width:40,height:40,borderRadius:12,background:"#25d36615",border:"1.5px solid #25d36635",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20 }}>👥</div>
+          <div style={{ color:"#fff",fontSize:14,fontWeight:600 }}>{c.name}</div>
+        </div>
+        <button onClick={()=>comunidadesApi.delete(c.id).then(load)}
+          style={{ background:"#ef444410",border:"1px solid #ef444425",borderRadius:7,color:"#ef4444",padding:"5px 10px",fontSize:11,cursor:"pointer" }}>✕</button>
+      </div>
+    ))}
+    {!showComForm ? (
+      <button onClick={()=>setShowComForm(true)}
+        style={{ background:"#ffffff04",border:"1px dashed #ffffff15",borderRadius:12,color:"#ffffff40",width:"100%",padding:"13px 0",fontSize:13,cursor:"pointer" }}>+ Agregar comunidad manual</button>
+    ) : (
+      <div style={{ background:"#ffffff04",border:"1px solid #ffffff0f",borderRadius:14,padding:16 }}>
+        <div style={{ color:"#fff",fontWeight:700,marginBottom:12 }}>📤 Nueva comunidad destino</div>
+        {[{k:"name",l:"Nombre"},{k:"wa_group_id",l:"ID WhatsApp"}].map(({k,l})=>(
+          <div key={k} style={{ marginBottom:10 }}>
+            <label style={{ color:"#ffffff40",fontSize:11,display:"block",marginBottom:4 }}>{l}</label>
+            <input value={comForm[k]} onChange={e=>setComForm(p=>({...p,[k]:e.target.value}))}
+              style={{ width:"100%",background:"#1e293b",border:"1px solid #ffffff15",borderRadius:8,padding:"8px 11px",fontSize:13,color:"#fff",outline:"none",boxSizing:"border-box" }} />
+          </div>
+        ))}
+        <div style={{ display:"flex",gap:8 }}>
+          <button onClick={()=>setShowComForm(false)} style={{ flex:1,background:"#ffffff08",border:"1px solid #ffffff12",borderRadius:10,color:"#fff",padding:"10px 0",fontSize:13,cursor:"pointer" }}>Cancelar</button>
+          <button onClick={addCom} style={{ flex:2,background:"linear-gradient(135deg,#7c3aed,#00d4aa)",border:"none",borderRadius:10,color:"#fff",padding:"10px 0",fontSize:13,fontWeight:700,cursor:"pointer" }}>✅ Guardar</button>
+        </div>
+      </div>
+    )}
+  </div>
+)}
  
           {/* Formulario nueva bodega */}
           {showNuevaBodegaForm ? (
